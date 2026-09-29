@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 import os
 from pathlib import Path
 
+import dj_database_url
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -95,12 +97,25 @@ WSGI_APPLICATION = 'ascendiq.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Locally: the SQLite file, so testing never touches real accounts.
+# On Render: Supabase Postgres, from the DATABASE_URL environment variable.
+# The password lives only inside DATABASE_URL — never in this file.
+if DEBUG:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': dj_database_url.parse(
+            os.environ['DATABASE_URL'],
+            conn_max_age=600,         # reuse connections instead of reopening every request
+            conn_health_checks=True,  # drop a stale connection instead of erroring
+            ssl_require=True,         # encrypt traffic between Render and Supabase
+        )
+    }
 
 
 # Password validation
