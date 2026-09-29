@@ -1,21 +1,15 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AscendIQ</title>
-  <style>
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center;
-           background: #001D3A; color: #C9D9E2; padding: 16px;
-           font-family: system-ui, sans-serif; font-size: 18px; text-align: center; }
-    h1 { color: #fff; font-size: 40px; margin: 0 0 12px; }
-    h1 span { color: #F97316; }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>Ascend<span>IQ</span></h1>
-    <p>The recruiting profile that stays current because you train inside it.</p>
-  </main>
-</body>
-</html>
+{% extends "public_base.html" %}
+
+{% block content %}
+  <h1 class="brand">Ascend<span>IQ</span></h1>
+  <p class="page__lede">The recruiting profile that stays current because you train inside it.</p>
+
+  <div class="stack">
+    {% if user.is_authenticated %}
+      <a class="btn-primary" href="{% url 'dashboard' %}">Go to my dashboard</a>
+    {% else %}
+      <a class="btn-primary" href="{% url 'signup' %}">Sign up</a>
+      <a class="btn-ghost" href="{% url 'login' %}">Log in</a>
+    {% endif %}
+  </div>
+{% endblock %}

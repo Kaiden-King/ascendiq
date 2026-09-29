@@ -1,0 +1,13 @@
+{# Shared by the sign up and log in pages: one labelled box per field. #}
+{% if form.non_field_errors %}
+  <div class="form-error" role="alert">{{ form.non_field_errors|join:" " }}</div>
+{% endif %}
+
+{% for field in form %}
+  <div class="field">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {{ field.errors }}
+    {% if field.help_text %}<div class="field__help">{{ field.help_text|safe }}</div>{% endif %}
+  </div>
+{% endfor %}

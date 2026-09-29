@@ -1,0 +1,15 @@
+{% extends "public_base.html" %}
+
+{% block title %}Sign up · AscendIQ{% endblock %}
+
+{% block content %}
+  <h1 class="page__title">Create your account</h1>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "registration/form_fields.html" %}
+    <button type="submit" class="btn-primary">Sign up</button>
+  </form>
+
+  <p class="page__foot">Already have an account? <a href="{% url 'login' %}">Log in</a></p>
+{% endblock %}

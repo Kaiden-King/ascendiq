@@ -138,6 +138,15 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# Login and logout
+# Where to send people who aren't logged in, and where to go afterwards.
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'home'
+# Sessions last Django's default two weeks and survive closing the browser,
+# so "still logged in tomorrow" works without extra settings.
+
+
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
@@ -154,6 +163,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+# Our own CSS lives in /static; collectstatic copies it into STATIC_ROOT.
+STATICFILES_DIRS = [BASE_DIR / 'static']
 # collectstatic gathers every static file here during the Render build.
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 

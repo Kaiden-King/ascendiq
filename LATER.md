@@ -32,4 +32,8 @@ Add to this instead of building. Nothing here is a bad idea.
   positions, skill ratings, stat lines, combine metrics, season calendar.
 
 ## From week 2 onward — things I wanted and didn't build
-- (add them here as they come up)
+- Password reset by email — sign up doesn't ask for an email yet, so a
+  forgotten password is reset by hand in /admin
+- Limit login attempts (stop password guessing) — week 6 security pass
+- Profile pictures without sending the athlete's name to an outside service
+  (app-starter's base.html uses dicebear.com — replace before week 2)
