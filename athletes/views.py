@@ -6,7 +6,7 @@ from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
 from .forms import SignupForm
-from .models import Athlete
+from .models import Athlete, Workout, WorkoutSet
 from .workout_templates import GUARD_60, GUARD_60_FOCUS, create_todays_workout, todays_workout
 
 
@@ -59,9 +59,11 @@ def dashboard(request):
 
 @login_required
 def workout_today(request):
-    """Today's drills. Shows the plan until Start is tapped, then the real workout."""
+    """Today's plan and the Start button. Once started, go straight to the session."""
     athlete = get_object_or_404(Athlete, user=request.user)
     workout = todays_workout(athlete)
+    if workout:
+        return redirect("workout_session", workout_id=workout.id)
     context = {
         "athlete": athlete,
         "active_tab": "record",
@@ -77,6 +79,34 @@ def workout_today(request):
 def workout_start(request):
     """Create today's workout. POST only, so just visiting a page never creates rows."""
     athlete = get_object_or_404(Athlete, user=request.user)
-    create_todays_workout(athlete)
-    # Step 16 sends this to the active session screen instead.
-    return redirect("workout_today")
+    workout = create_todays_workout(athlete)
+    return redirect("workout_session", workout_id=workout.id)
+
+
+@login_required
+def workout_session(request, workout_id):
+    """The active session: one tappable row per drill."""
+    # Access check in the query: someone else's workout ID is simply "not found".
+    workout = get_object_or_404(Workout, id=workout_id, athlete__user=request.user)
+    context = {
+        "athlete": workout.athlete,
+        "active_tab": "record",
+        "workout": workout,
+        "sets": workout.workoutset_set.all(),
+    }
+    return render(request, "workout_session.html", context)
+
+
+@login_required
+@require_POST
+def set_toggle(request, set_id):
+    """Tap a drill: flip done/not done, send back just that row."""
+    # Access check in the query, through the workout to its athlete's login.
+    workout_set = get_object_or_404(WorkoutSet, id=set_id, workout__athlete__user=request.user)
+    workout_set.completed = not workout_set.completed
+    workout_set.save(update_fields=["completed"])
+
+    if not request.htmx:
+        # No HTMX (old browser, script blocked): fall back to reloading the page.
+        return redirect("workout_session", workout_id=workout_set.workout_id)
+    return render(request, "partials/set_row.html", {"set": workout_set})

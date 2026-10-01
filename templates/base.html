@@ -60,6 +60,23 @@
   </nav>
   {% endblock %}
 
+  {# Shown when an HTMX save fails — bad gym wifi must never fail silently. #}
+  <div class="toast" id="save-error" role="alert" hidden>Didn't save — check your signal and tap again.</div>
+
 </div>
+<script>
+  // Any failed HTMX request (no connection, or a server error) shows the toast for 4 seconds.
+  (function () {
+    var toast = document.getElementById("save-error");
+    var timer;
+    function showError() {
+      toast.hidden = false;
+      clearTimeout(timer);
+      timer = setTimeout(function () { toast.hidden = true; }, 4000);
+    }
+    document.body.addEventListener("htmx:sendError", showError);
+    document.body.addEventListener("htmx:responseError", showError);
+  })();
+</script>
 </body>
 </html>

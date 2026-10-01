@@ -3,41 +3,26 @@
 {% block title %}Today's workout · AscendIQ{% endblock %}
 
 {% block content %}
+  {# Only shown before Start. Once started, the view goes straight to the session. #}
   <div class="sect">
     <div class="sect__hd">
       <h2>Today's workout</h2>
-      <span class="sect__note">{{ workout.focus|default:plan_focus }}</span>
+      <span class="sect__note">{{ plan_focus }}</span>
     </div>
 
     <ol class="drills card">
-      {% if workout %}
-        {# Started: the real drills from the database #}
-        {% for set in workout.workoutset_set.all %}
-          <li class="drill">
-            <span class="drill__name">{{ set.drill_name }}</span>
-            <span class="drill__target">{{ set.target }}</span>
-            {% if set.made is not None %}<span class="drill__tag">Makes</span>{% endif %}
-          </li>
-        {% endfor %}
-      {% else %}
-        {# Not started yet: the plan, straight from the template #}
-        {% for name, target, tracks_shots in plan %}
-          <li class="drill">
-            <span class="drill__name">{{ name }}</span>
-            <span class="drill__target">{{ target }}</span>
-            {% if tracks_shots %}<span class="drill__tag">Makes</span>{% endif %}
-          </li>
-        {% endfor %}
-      {% endif %}
+      {% for name, target, tracks_shots in plan %}
+        <li class="drill">
+          <span class="drill__name">{{ name }}</span>
+          <span class="drill__target">{{ target }}</span>
+          {% if tracks_shots %}<span class="drill__tag">Makes</span>{% endif %}
+        </li>
+      {% endfor %}
     </ol>
   </div>
 
-  {% if workout %}
-    <p class="today__sub">Started {{ workout.started_at|time:"g:i A" }}. Checking off drills arrives in step 16.</p>
-  {% else %}
-    <form method="post" action="{% url 'workout_start' %}">
-      {% csrf_token %}
-      <button type="submit" class="btn-primary">Start workout</button>
-    </form>
-  {% endif %}
+  <form method="post" action="{% url 'workout_start' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn-primary">Start workout</button>
+  </form>
 {% endblock %}

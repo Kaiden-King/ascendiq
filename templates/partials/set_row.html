@@ -1,0 +1,22 @@
+{% comment %}
+  One drill row. The full session page and every HTMX response both render this,
+  so a tapped row comes back from the server exactly as the page would draw it.
+{% endcomment %}
+<li class="set{% if set.completed %} set--done{% endif %}" id="set-{{ set.id }}">
+  <button type="button" class="set__toggle"
+          hx-post="{% url 'set_toggle' set.id %}"
+          hx-target="#set-{{ set.id }}"
+          hx-swap="outerHTML"
+          hx-disabled-elt="this"
+          aria-pressed="{% if set.completed %}true{% else %}false{% endif %}">
+    <span class="set__check" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+    </span>
+    <span class="set__text">
+      <span class="set__name">{{ set.drill_name }}</span>
+      <span class="set__target">{{ set.target }}</span>
+    </span>
+    <span class="sr-only">{% if set.completed %}Done — tap to undo{% else %}Tap when done{% endif %}</span>
+  </button>
+  {# Shooting drills (made is not None) get score boxes in step 17. #}
+</li>

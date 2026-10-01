@@ -10,4 +10,6 @@ urlpatterns = [
     path("dashboard/", views.dashboard, name="dashboard"),
     path("workout/today/", views.workout_today, name="workout_today"),
     path("workout/start/", views.workout_start, name="workout_start"),
+    path("workout/<int:workout_id>/", views.workout_session, name="workout_session"),
+    path("workout/set/<int:set_id>/toggle/", views.set_toggle, name="set_toggle"),
 ]

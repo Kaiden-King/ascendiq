@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Workout · AscendIQ{% endblock %}
+
+{% block content %}
+  <div class="sect">
+    <div class="sect__hd">
+      <h2>{{ workout.focus }}</h2>
+      <span class="sect__note">Started {{ workout.started_at|time:"g:i A" }}</span>
+    </div>
+    <p class="session__hint">Tap a drill when you finish it.</p>
+
+    <ol class="sets">
+      {% for set in sets %}
+        {% include "partials/set_row.html" %}
+      {% endfor %}
+    </ol>
+  </div>
+
+  {# Pinned to the bottom of the scroll area so it's always in thumb reach. #}
+  <div class="session__bar">
+    <button type="button" class="btn-primary" disabled title="Finishing arrives in step 18">Finish workout</button>
+  </div>
+{% endblock %}
