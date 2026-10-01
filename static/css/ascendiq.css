@@ -158,6 +158,8 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
   scrollbar-width: none;
 }
 .main::-webkit-scrollbar { display: none; }
+/* Sections keep their full height and the page scrolls — never squash a list to fit the screen */
+.main > * { flex-shrink: 0; }
 
 .sect { display: flex; flex-direction: column; gap: var(--gap); }
 .sect__hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -505,3 +507,26 @@ a.btn-primary { display: flex; align-items: center; justify-content: center; }
 .score__box input:focus { outline: 2px solid var(--orange-lt); outline-offset: 1px; }
 .score__status { grid-column: 1 / -1; margin: 0; font-size: 14px; font-weight: 700; color: var(--orange-lt); }
 .score__status--error { color: var(--down); }
+
+/* ===================== workout summary ===================== */
+.done {
+  padding: 24px 20px; text-align: center;
+  background: linear-gradient(145deg, var(--today-from), var(--today-to));
+  border: 1px solid var(--orange-line); border-radius: var(--r-lg);
+}
+.done__head { margin: 4px 0 12px; font-size: 24px; font-weight: 700; color: var(--text); }
+.done__big {
+  margin: 0; font-size: 64px; font-weight: 700; line-height: 1; color: var(--orange-lt);
+  font-variant-numeric: tabular-nums;
+}
+.done__big span { font-size: 28px; margin-left: 2px; }
+.done__label { margin: 8px 0 0; font-size: 16px; color: var(--body); }
+
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+.tile {
+  padding: 16px; text-align: center;
+  background: var(--card); border: 1px solid var(--card-line); border-radius: var(--r-md);
+}
+.tile__n { margin: 0; font-size: 28px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.tile__n span { font-size: 16px; color: var(--muted); }
+.tile__l { margin: 2px 0 0; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }

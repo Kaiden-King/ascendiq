@@ -2,11 +2,13 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
 from .forms import SignupForm
 from .models import Athlete, Workout, WorkoutSet
+from .stats import minutes_between, shooting_totals
 from .workout_templates import GUARD_60, GUARD_60_FOCUS, create_todays_workout, todays_workout
 
 
@@ -88,6 +90,8 @@ def workout_session(request, workout_id):
     """The active session: one tappable row per drill."""
     # Access check in the query: someone else's workout ID is simply "not found".
     workout = get_object_or_404(Workout, id=workout_id, athlete__user=request.user)
+    if workout.status == "completed":
+        return redirect("workout_summary", workout_id=workout.id)
     context = {
         "athlete": workout.athlete,
         "active_tab": "record",
@@ -102,7 +106,10 @@ def workout_session(request, workout_id):
 def set_toggle(request, set_id):
     """Tap a drill: flip done/not done, send back just that row."""
     # Access check in the query, through the workout to its athlete's login.
-    workout_set = get_object_or_404(WorkoutSet, id=set_id, workout__athlete__user=request.user)
+    # A finished workout is locked: its drills are "not found".
+    workout_set = get_object_or_404(
+        WorkoutSet, id=set_id, workout__athlete__user=request.user, workout__status="in_progress"
+    )
     workout_set.completed = not workout_set.completed
     workout_set.save(update_fields=["completed"])
 
@@ -128,9 +135,11 @@ def parse_shots(raw):
 @require_POST
 def set_score(request, set_id):
     """Save makes and attempts for one shooting drill. Never trust what the browser sends."""
-    # Access check in the query. made__isnull=False: only shooting drills have scores.
+    # Access check in the query. Only unfinished workouts, and only shooting drills
+    # (made__isnull=False), can take scores.
     workout_set = get_object_or_404(
-        WorkoutSet, id=set_id, workout__athlete__user=request.user, made__isnull=False
+        WorkoutSet, id=set_id, workout__athlete__user=request.user,
+        workout__status="in_progress", made__isnull=False,
     )
     made = parse_shots(request.POST.get("made"))
     attempted = parse_shots(request.POST.get("attempted"))
@@ -158,4 +167,45 @@ def set_score(request, set_id):
         "saved": error is None and hint is None,
         "error": error,
         "hint": hint,
+    })
+
+
+@login_required
+@require_POST
+def workout_finish(request, workout_id):
+    """Mark the workout completed and record how long it took. Only ever once."""
+    workout = get_object_or_404(Workout, id=workout_id, athlete__user=request.user)
+
+    if workout.status != "completed":
+        now = timezone.now()
+        duration = minutes_between(workout.started_at, now) if workout.started_at else None
+        # The status check is inside the UPDATE itself, so two quick taps on
+        # Finish can't both succeed — the second one updates nothing.
+        Workout.objects.filter(id=workout.id, status="in_progress").update(
+            status="completed", duration_min=duration
+        )
+    return redirect("workout_summary", workout_id=workout.id)
+
+
+@login_required
+def workout_summary(request, workout_id):
+    """What you did: drills done, shooting %, time taken."""
+    workout = get_object_or_404(Workout, id=workout_id, athlete__user=request.user)
+    if workout.status != "completed":
+        return redirect("workout_session", workout_id=workout.id)
+
+    sets = list(workout.workoutset_set.all())
+    shooting_sets = [s for s in sets if s.made is not None]
+    made, attempted, pct = shooting_totals([(s.made, s.attempted) for s in shooting_sets])
+
+    return render(request, "workout_summary.html", {
+        "athlete": workout.athlete,
+        "active_tab": "record",
+        "workout": workout,
+        "sets": sets,
+        "drills_done": sum(1 for s in sets if s.completed),
+        "drills_total": len(sets),
+        "made": made,
+        "attempted": attempted,
+        "pct": pct,
     })

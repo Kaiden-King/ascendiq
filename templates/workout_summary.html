@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Workout done · AscendIQ{% endblock %}
+
+{% block content %}
+  <section class="done">
+    <p class="eyebrow">{{ workout.date|date:"l j F" }} · {{ workout.focus }}</p>
+    <h2 class="done__head">Workout complete</h2>
+
+    {% if pct is not None %}
+      <p class="done__big">{{ pct }}<span>%</span></p>
+      <p class="done__label">Shooting · {{ made }} of {{ attempted }}</p>
+    {% else %}
+      <p class="done__label">No shots logged today</p>
+    {% endif %}
+  </section>
+
+  <div class="tiles">
+    <div class="tile">
+      <p class="tile__n">{{ drills_done }}<span>/{{ drills_total }}</span></p>
+      <p class="tile__l">Drills done</p>
+    </div>
+    <div class="tile">
+      <p class="tile__n">{% if workout.duration_min %}{{ workout.duration_min }}<span> min</span>{% else %}—{% endif %}</p>
+      <p class="tile__l">Time</p>
+    </div>
+  </div>
+
+  <ol class="drills card">
+    {% for set in sets %}
+      <li class="drill">
+        <span class="drill__name">{% if set.completed %}✓ {% endif %}{{ set.drill_name }}</span>
+        <span class="drill__target">
+          {% if set.made is not None %}{{ set.made }}/{{ set.attempted }}{% if set.pct is not None %} · {{ set.pct }}%{% endif %}{% else %}{{ set.target }}{% endif %}
+        </span>
+      </li>
+    {% endfor %}
+  </ol>
+
+  <a class="btn-ghost" href="{% url 'dashboard' %}">Back to dashboard</a>
+{% endblock %}

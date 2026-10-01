@@ -18,7 +18,8 @@
   </div>
 
   {# Pinned to the bottom of the scroll area so it's always in thumb reach. #}
-  <div class="session__bar">
-    <button type="button" class="btn-primary" disabled title="Finishing arrives in step 18">Finish workout</button>
-  </div>
+  <form class="session__bar" method="post" action="{% url 'workout_finish' workout.id %}">
+    {% csrf_token %}
+    <button type="submit" class="btn-primary">Finish workout</button>
+  </form>
 {% endblock %}

@@ -35,5 +35,7 @@ Add to this instead of building. Nothing here is a bad idea.
 - Password reset by email — sign up doesn't ask for an email yet, so a
   forgotten password is reset by hand in /admin
 - Limit login attempts (stop password guessing) — week 6 security pass
+- "You've got 2 drills left — finish anyway?" prompt on Finish (right now an
+  unfinished drill just shows as 3/5 on the summary)
 - Profile pictures without sending the athlete's name to an outside service
   (app-starter's base.html uses dicebear.com — replace before week 2)
