@@ -1,0 +1,14 @@
+{# The line under the score boxes. Replaced after each save; the boxes themselves never are. #}
+<p class="score__status{% if error %} score__status--error{% endif %}" id="score-status-{{ set.id }}" role="status">
+  {% if error %}
+    {{ error }}
+  {% elif hint %}
+    {{ hint }}
+  {% elif saved %}
+    Saved{% if pct is not None %} · {{ set.made }}/{{ set.attempted }} · {{ pct }}%{% endif %}
+  {% elif pct is not None %}
+    {{ set.made }}/{{ set.attempted }} · {{ pct }}%
+  {% else %}
+    Enter makes and attempts
+  {% endif %}
+</p>

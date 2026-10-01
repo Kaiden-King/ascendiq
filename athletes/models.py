@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from .stats import shooting_pct
+
 
 class Athlete(models.Model):
     """One per login account. Everything else hangs off this."""
@@ -63,6 +65,13 @@ class WorkoutSet(models.Model):
 
     def __str__(self):
         return self.drill_name
+
+    @property
+    def pct(self):
+        """Shooting % for this drill, or None. The maths lives in stats.py."""
+        if self.made is None:
+            return None
+        return shooting_pct(self.made, self.attempted)
 
 
 class Measurement(models.Model):

@@ -485,3 +485,23 @@ a.btn-primary { display: flex; align-items: center; justify-content: center; }
   background: var(--navy-raised); border-left: 4px solid var(--down);
   color: var(--text); font-size: 15px; font-weight: 700;
 }
+
+/* ===================== makes and attempts ===================== */
+.score {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  padding: 0 16px 14px 62px;   /* lines up under the drill name, past the check circle */
+}
+.score__box { display: flex; flex-direction: column; gap: 4px; }
+.score__box span {
+  font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted);
+}
+.score__box input {
+  width: 100%; min-height: 48px; padding: 8px 12px;
+  font: inherit; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--text); background: var(--well);
+  border: 1px solid var(--card-line); border-radius: var(--r-sm);
+}
+.score__box input:focus { outline: 2px solid var(--orange-lt); outline-offset: 1px; }
+.score__status { grid-column: 1 / -1; margin: 0; font-size: 14px; font-weight: 700; color: var(--orange-lt); }
+.score__status--error { color: var(--down); }

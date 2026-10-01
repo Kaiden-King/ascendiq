@@ -110,3 +110,52 @@ def set_toggle(request, set_id):
         # No HTMX (old browser, script blocked): fall back to reloading the page.
         return redirect("workout_session", workout_id=workout_set.workout_id)
     return render(request, "partials/set_row.html", {"set": workout_set})
+
+
+MAX_SHOTS = 999  # a typo guard, not a real limit
+
+
+def parse_shots(raw):
+    """A box's value as a whole number 0–999, or None if it isn't one."""
+    raw = (raw or "").strip()
+    if not raw.isdigit():  # rejects "", "-3", "4.5", "abc"
+        return None
+    number = int(raw)
+    return number if number <= MAX_SHOTS else None
+
+
+@login_required
+@require_POST
+def set_score(request, set_id):
+    """Save makes and attempts for one shooting drill. Never trust what the browser sends."""
+    # Access check in the query. made__isnull=False: only shooting drills have scores.
+    workout_set = get_object_or_404(
+        WorkoutSet, id=set_id, workout__athlete__user=request.user, made__isnull=False
+    )
+    made = parse_shots(request.POST.get("made"))
+    attempted = parse_shots(request.POST.get("attempted"))
+
+    error = None
+    hint = None
+    if made is None or attempted is None:
+        error = "Use whole numbers from 0 to 999."
+    elif made > 0 and attempted == 0:
+        # Normal mid-entry state (makes typed, attempts not yet) — prompt, don't scold.
+        hint = "Now enter attempts"
+    elif made > attempted:
+        error = "Makes can't be more than attempts."
+    else:
+        workout_set.made = made
+        workout_set.attempted = attempted
+        workout_set.save(update_fields=["made", "attempted"])
+
+    if not request.htmx:
+        return redirect("workout_session", workout_id=workout_set.workout_id)
+    # 200 even on a validation error, so the message shows in place of the status line.
+    return render(request, "partials/score_status.html", {
+        "set": workout_set,
+        "pct": workout_set.pct,
+        "saved": error is None and hint is None,
+        "error": error,
+        "hint": hint,
+    })

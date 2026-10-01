@@ -18,5 +18,24 @@
     </span>
     <span class="sr-only">{% if set.completed %}Done — tap to undo{% else %}Tap when done{% endif %}</span>
   </button>
-  {# Shooting drills (made is not None) get score boxes in step 17. #}
+  {% if set.made is not None %}
+    {# Shooting drills only. Saves half a second after a box changes; sends both numbers. #}
+    <form class="score"
+          hx-post="{% url 'set_score' set.id %}"
+          hx-trigger="change delay:500ms"
+          hx-target="#score-status-{{ set.id }}"
+          hx-swap="outerHTML">
+      <label class="score__box">
+        <span>Made</span>
+        <input type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="999"
+               name="made" value="{{ set.made }}" enterkeyhint="next">
+      </label>
+      <label class="score__box">
+        <span>Attempted</span>
+        <input type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="999"
+               name="attempted" value="{{ set.attempted }}" enterkeyhint="done">
+      </label>
+      {% include "partials/score_status.html" with pct=set.pct %}
+    </form>
+  {% endif %}
 </li>
