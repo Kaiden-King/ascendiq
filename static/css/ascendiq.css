@@ -507,6 +507,7 @@ a.btn-primary { display: flex; align-items: center; justify-content: center; }
 .score__box input:focus { outline: 2px solid var(--orange-lt); outline-offset: 1px; }
 .score__status { grid-column: 1 / -1; margin: 0; font-size: 14px; font-weight: 700; color: var(--orange-lt); }
 .score__status--error { color: var(--down); }
+.score__status--hint { color: var(--muted); }   /* mid-typing: not saved yet, not wrong either */
 
 /* ===================== workout summary ===================== */
 .done {

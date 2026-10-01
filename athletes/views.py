@@ -144,18 +144,25 @@ def set_score(request, set_id):
         WorkoutSet, id=set_id, workout__athlete__user=request.user,
         workout__status="in_progress", made__isnull=False,
     )
-    made = parse_shots(request.POST.get("made"))
-    attempted = parse_shots(request.POST.get("attempted"))
+    raw_made = (request.POST.get("made") or "").strip()
+    raw_attempted = (request.POST.get("attempted") or "").strip()
+    made = parse_shots(raw_made)
+    attempted = parse_shots(raw_attempted)
 
+    # This runs while the athlete is still typing, so half-typed numbers are
+    # normal: those get a calm hint and aren't saved. Red errors are only for
+    # input that can never be right.
     error = None
     hint = None
-    if made is None or attempted is None:
+    if not raw_made or not raw_attempted:
+        hint = "Enter makes and attempts"
+    elif made is None or attempted is None:
         error = "Use whole numbers from 0 to 999."
     elif made > 0 and attempted == 0:
-        # Normal mid-entry state (makes typed, attempts not yet) — prompt, don't scold.
         hint = "Now enter attempts"
     elif made > attempted:
-        error = "Makes can't be more than attempts."
+        # e.g. attempts shows "5" on the way to "50"
+        hint = f"Attempts need to be at least {made}"
     else:
         workout_set.made = made
         workout_set.attempted = attempted
