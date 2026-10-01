@@ -556,3 +556,18 @@ a.btn-primary { display: flex; align-items: center; justify-content: center; }
 .hist-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .hist-card > span:first-child { display: flex; flex-direction: column; }
 .hist-card__n { font-size: 19px; font-weight: 700; color: var(--text); }
+
+/* ===================== step 20: mobile pass — minimum sizes ===================== */
+/* Measured at 375px. Rule: body text 16px+, every tap target 44px+.
+   Labels in small capitals may be smaller, but never under 12px. */
+
+/* Secondary text a sweaty athlete still has to read */
+.today__sub, .set__target, .drill__target, .hist__meta,
+.session__hint, .score__status, .field__help, .done__label { font-size: 16px; }
+
+/* Small-caps labels: 10px was unreadable at arm's length */
+.eyebrow, .sect__note, .link-more, .nav__item span,
+.hist__mon, .tile__l, .score__box span { font-size: 12px; }
+
+/* "Log in" / "Create an account" links: tall enough for a thumb */
+.page__foot a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; }
