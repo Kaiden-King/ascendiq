@@ -8,7 +8,8 @@
       <h2>{{ workout.focus }}</h2>
       <span class="sect__note">Started {{ workout.started_at|time:"g:i A" }}</span>
     </div>
-    <p class="session__hint">Tap a drill when you finish it.</p>
+
+    {% include "partials/progress.html" %}
 
     <ol class="sets">
       {% for set in sets %}
@@ -18,8 +19,41 @@
   </div>
 
   {# Pinned to the bottom of the scroll area so it's always in thumb reach. #}
-  <form class="session__bar" method="post" action="{% url 'workout_finish' workout.id %}">
+  <form class="session__bar" id="finish-form" method="post" action="{% url 'workout_finish' workout.id %}">
     {% csrf_token %}
     <button type="submit" class="btn-primary">Finish workout</button>
   </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    // 1. Keep the screen awake during the workout, so there's no unlocking between
+    //    drills. Phones drop the lock when the app is hidden, so take it again on return.
+    //    It's released automatically when you leave this page (e.g. tap Finish).
+    var wakeLock = null;
+    function keepAwake() {
+      if (!("wakeLock" in navigator) || document.visibilityState !== "visible") return;
+      navigator.wakeLock.request("screen").then(function (lock) { wakeLock = lock; })
+        .catch(function () { /* battery saver or unsupported: the app still works */ });
+    }
+    keepAwake();
+    document.addEventListener("visibilitychange", keepAwake);
+
+    // 2. A short buzz when a drill is ticked or a shot is counted (Android; iPhones ignore it).
+    document.body.addEventListener("htmx:afterRequest", function (event) {
+      var source = event.detail.elt;
+      var isTap = source.matches(".set__toggle, .shot");
+      if (event.detail.successful && isTap && navigator.vibrate) navigator.vibrate(12);
+    });
+
+    // 3. Finishing with drills still unticked asks first.
+    document.getElementById("finish-form").addEventListener("submit", function (event) {
+      var left = document.querySelectorAll(".set:not(.set--done)").length;
+      if (left === 0) return;
+      var message = "You've got " + left + " drill" + (left === 1 ? "" : "s") + " left. Finish anyway?";
+      if (!window.confirm(message)) event.preventDefault();
+    });
+  })();
+</script>
 {% endblock %}

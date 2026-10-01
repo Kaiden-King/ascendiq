@@ -35,8 +35,6 @@ Add to this instead of building. Nothing here is a bad idea.
 - Password reset by email — sign up doesn't ask for an email yet, so a
   forgotten password is reset by hand in /admin
 - Limit login attempts (stop password guessing) — week 6 security pass
-- "You've got 2 drills left — finish anyway?" prompt on Finish (right now an
-  unfinished drill just shows as 3/5 on the summary)
 - Workout time when the app is left open: duration runs Start → Finish, so a
   forgotten Finish reads 185 min. Let athletes adjust it on the summary, or cap it
 - Profile pictures without sending the athlete's name to an outside service

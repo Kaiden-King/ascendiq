@@ -2,15 +2,17 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import F, Q, Sum
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
 from .forms import SignupForm
 from .models import Athlete, Workout, WorkoutSet
-from .stats import minutes_between, shooting_pct, shooting_totals
+from .stats import minutes_between, pct_change, shooting_pct, shooting_totals
 from .workout_templates import GUARD_60, GUARD_60_FOCUS, create_todays_workout, todays_workout
 
 
@@ -88,6 +90,42 @@ def workout_start(request):
     return redirect("workout_session", workout_id=workout.id)
 
 
+def workout_shooting(workout):
+    """(made, attempted, pct) across all of a workout's shooting drills. One query."""
+    totals = workout.workoutset_set.aggregate(made=Sum("made"), attempted=Sum("attempted"))
+    made = totals["made"] or 0
+    attempted = totals["attempted"] or 0
+    return made, attempted, shooting_pct(made, attempted)
+
+
+def workout_progress(workout):
+    """Everything the progress bar at the top of the session screen shows."""
+    drills = workout.workoutset_set
+    done = drills.filter(completed=True).count()
+    total = drills.count()
+    made, attempted, pct = workout_shooting(workout)
+    return {
+        "done": done,
+        "total": total,
+        "bar_pct": round(done / total * 100) if total else 0,
+        "made": made,
+        "attempted": attempted,
+        "pct": pct,
+    }
+
+
+def with_progress(request, template, context, workout):
+    """Render a fragment, plus the progress bar as an HTMX out-of-band swap.
+
+    One response updates two places: the thing you tapped, and the bar at the top.
+    """
+    fragment = render_to_string(template, context, request=request)
+    progress = render_to_string(
+        "partials/progress.html", {"progress": workout_progress(workout), "oob": True}, request=request
+    )
+    return HttpResponse(fragment + progress)
+
+
 @login_required
 def workout_session(request, workout_id):
     """The active session: one tappable row per drill."""
@@ -100,6 +138,7 @@ def workout_session(request, workout_id):
         "active_tab": "record",
         "workout": workout,
         "sets": workout.workoutset_set.all(),
+        "progress": workout_progress(workout),
     }
     return render(request, "workout_session.html", context)
 
@@ -119,7 +158,7 @@ def set_toggle(request, set_id):
     if not request.htmx:
         # No HTMX (old browser, script blocked): fall back to reloading the page.
         return redirect("workout_session", workout_id=workout_set.workout_id)
-    return render(request, "partials/set_row.html", {"set": workout_set})
+    return with_progress(request, "partials/set_row.html", {"set": workout_set}, workout_set.workout)
 
 
 MAX_SHOTS = 999  # a typo guard, not a real limit
@@ -171,13 +210,43 @@ def set_score(request, set_id):
     if not request.htmx:
         return redirect("workout_session", workout_id=workout_set.workout_id)
     # 200 even on a validation error, so the message shows in place of the status line.
-    return render(request, "partials/score_status.html", {
+    return with_progress(request, "partials/score_status.html", {
         "set": workout_set,
         "pct": workout_set.pct,
         "saved": error is None and hint is None,
         "error": error,
         "hint": hint,
-    })
+    }, workout_set.workout)
+
+
+@login_required
+@require_POST
+def set_shot(request, set_id):
+    """+MAKE or +MISS: count one shot. Built for fast, repeated taps."""
+    result = request.POST.get("result")
+    if result not in ("make", "miss"):
+        return HttpResponseBadRequest("result must be make or miss")
+
+    # Access check in the query, same rules as typing a score.
+    workout_set = get_object_or_404(
+        WorkoutSet, id=set_id, workout__athlete__user=request.user,
+        workout__status="in_progress", made__isnull=False,
+    )
+    # F() does the +1 inside the database, so two quick taps can't both read
+    # 40 and both write 41 — each tap really counts.
+    WorkoutSet.objects.filter(id=workout_set.id, attempted__lt=MAX_SHOTS).update(
+        made=F("made") + (1 if result == "make" else 0),
+        attempted=F("attempted") + 1,
+    )
+    workout_set.refresh_from_db()
+
+    if not request.htmx:
+        return redirect("workout_session", workout_id=workout_set.workout_id)
+    # Main swap: the two number boxes. Out of band: the status line and the progress bar.
+    return with_progress(request, "partials/score_form.html", {
+        "set": workout_set,
+        "oob_status": True,
+    }, workout_set.workout)
 
 
 HISTORY_PER_PAGE = 10
@@ -242,7 +311,19 @@ def workout_summary(request, workout_id):
     shooting_sets = [s for s in sets if s.made is not None]
     made, attempted, pct = shooting_totals([(s.made, s.attempted) for s in shooting_sets])
 
+    # Compare with the finished workout just before this one (same athlete only).
+    previous = (
+        Workout.objects.filter(athlete=workout.athlete, status="completed")
+        .filter(Q(date__lt=workout.date) | Q(date=workout.date, id__lt=workout.id))
+        .order_by("-date", "-id")
+        .first()
+    )
+    previous_pct = workout_shooting(previous)[2] if previous else None
+    change = pct_change(pct, previous_pct)
+
     return render(request, "workout_summary.html", {
+        "change": change,
+        "previous": previous,
         "athlete": workout.athlete,
         "active_tab": "record",
         "workout": workout,

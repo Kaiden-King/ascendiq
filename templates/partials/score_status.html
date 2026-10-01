@@ -1,5 +1,6 @@
 {# The line under the score boxes. Replaced after each save; the boxes themselves never are. #}
-<p class="score__status{% if error %} score__status--error{% elif hint %} score__status--hint{% endif %}" id="score-status-{{ set.id }}" role="status">
+<p class="score__status{% if error %} score__status--error{% elif hint %} score__status--hint{% endif %}"
+   id="score-status-{{ set.id }}" role="status" {% if oob %}hx-swap-oob="true"{% endif %}>
   {% if error %}
     {{ error }}
   {% elif hint %}
@@ -9,6 +10,6 @@
   {% elif pct is not None %}
     {{ set.made }}/{{ set.attempted }} · {{ pct }}%
   {% else %}
-    Enter makes and attempts
+    Enter makes and attempts, or tap to count
   {% endif %}
 </p>

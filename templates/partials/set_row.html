@@ -19,27 +19,24 @@
     <span class="sr-only">{% if set.completed %}Done — tap to undo{% else %}Tap when done{% endif %}</span>
   </button>
   {% if set.made is not None %}
-    {% comment %}
-      Shooting drills only. Saves while typing, 300ms after the last digit; sends both numbers.
-      hx-sync: a newer keystroke cancels an older save still in flight, so the last one wins.
-    {% endcomment %}
-    <form class="score"
-          hx-post="{% url 'set_score' set.id %}"
-          hx-trigger="input delay:300ms"
-          hx-sync="this:replace"
-          hx-target="#score-status-{{ set.id }}"
-          hx-swap="outerHTML">
-      <label class="score__box">
-        <span>Made</span>
-        <input type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="999"
-               name="made" value="{{ set.made }}" enterkeyhint="next">
-      </label>
-      <label class="score__box">
-        <span>Attempted</span>
-        <input type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="999"
-               name="attempted" value="{{ set.attempted }}" enterkeyhint="done">
-      </label>
+    {# Shooting drills only: type the numbers, or count shot by shot with the buttons. #}
+    <div class="score">
+      {% include "partials/score_form.html" %}
+      {% comment %}
+        The buttons are never redrawn, so fast taps all land. hx-sync queues them
+        in order on this wrapper; each one adds 1 in the database (see set_shot).
+      {% endcomment %}
+      <div class="shots" id="shots-{{ set.id }}">
+        <button type="button" class="shot shot--make"
+                hx-post="{% url 'set_shot' set.id %}" hx-vals='{"result": "make"}'
+                hx-target="#score-form-{{ set.id }}" hx-swap="outerHTML"
+                hx-sync="#shots-{{ set.id }}:queue all">+ Make</button>
+        <button type="button" class="shot shot--miss"
+                hx-post="{% url 'set_shot' set.id %}" hx-vals='{"result": "miss"}'
+                hx-target="#score-form-{{ set.id }}" hx-swap="outerHTML"
+                hx-sync="#shots-{{ set.id }}:queue all">+ Miss</button>
+      </div>
       {% include "partials/score_status.html" with pct=set.pct %}
-    </form>
+    </div>
   {% endif %}
 </li>

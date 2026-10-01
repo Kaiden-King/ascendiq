@@ -572,3 +572,39 @@ a.btn-primary { display: flex; align-items: center; justify-content: center; }
 
 /* "Log in" / "Create an account" links: tall enough for a thumb */
 .page__foot a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; }
+
+/* ===================== upgrades: progress, shot counting, feel ===================== */
+/* Progress across the workout — top of the session screen */
+.progress {
+  padding: 14px 16px;
+  background: var(--card); border: 1px solid var(--card-line); border-radius: var(--r-md);
+}
+.progress__row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.progress__drills, .progress__shots { margin: 0; font-size: 16px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.progress__drills b { color: var(--text); font-size: 20px; }
+.progress__shots b { color: var(--orange-lt); font-size: 20px; }
+.progress__track { height: 8px; border-radius: 999px; background: var(--well); overflow: hidden; }
+.progress__fill { height: 100%; border-radius: 999px; background: var(--orange); transition: width .3s ease; }
+
+/* Score area: the boxes, then the shot buttons, then the status line */
+.score { display: flex; flex-direction: column; gap: 10px; padding: 0 16px 14px 62px; }
+.score__form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0; }
+.shots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.shot {
+  min-height: 52px; border-radius: var(--r-sm);
+  font-size: 16px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  transition: transform .08s ease;
+}
+.shot:active { transform: scale(.96); }
+.shot--make { background: var(--orange); color: var(--text); }
+.shot--miss { background: var(--well); color: var(--body); border: 1px solid var(--card-line); }
+
+/* Check-off: the circle pops when a row comes back from the server ticked.
+   htmx adds .htmx-added to new content for a moment; the transition runs as it's removed. */
+.set__check { transition: transform .2s ease, background-color .2s ease; }
+.set.htmx-added .set__check { transform: scale(.6); }
+
+/* Summary: up or down against last session */
+.delta { margin: 10px 0 0; font-size: 16px; font-weight: 700; color: var(--muted); }
+.delta--up { color: var(--orange-lt); }
+.delta--down { color: var(--down); }

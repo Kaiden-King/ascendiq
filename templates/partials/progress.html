@@ -1,0 +1,20 @@
+{% comment %}
+  Progress across the whole workout. Drawn on the session page, and sent again
+  "out of band" (oob) with every tap or score, so it updates without a reload.
+{% endcomment %}
+<section class="progress" id="progress" {% if oob %}hx-swap-oob="true"{% endif %} aria-live="polite">
+  <div class="progress__row">
+    <p class="progress__drills"><b>{{ progress.done }}</b> of {{ progress.total }} drills</p>
+    <p class="progress__shots">
+      {% if progress.pct is not None %}
+        <b>{{ progress.pct }}%</b> · {{ progress.made }}/{{ progress.attempted }}
+      {% else %}
+        No shots yet
+      {% endif %}
+    </p>
+  </div>
+  <div class="progress__track" role="progressbar" aria-label="Drills done"
+       aria-valuemin="0" aria-valuemax="{{ progress.total }}" aria-valuenow="{{ progress.done }}">
+    <div class="progress__fill" style="width: {{ progress.bar_pct }}%"></div>
+  </div>
+</section>

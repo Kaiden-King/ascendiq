@@ -21,6 +21,13 @@ def shooting_totals(scores):
     return made, attempted, shooting_pct(made, attempted)
 
 
+def pct_change(current, previous):
+    """Percentage points up or down from last time, or None if either is missing."""
+    if current is None or previous is None:
+        return None
+    return current - previous
+
+
 def minutes_between(start, end):
     """Whole minutes from start to end, never less than 1."""
     return max(1, round((end - start).total_seconds() / 60))

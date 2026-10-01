@@ -16,4 +16,5 @@ urlpatterns = [
     path("workout/<int:workout_id>/summary/", views.workout_summary, name="workout_summary"),
     path("workout/set/<int:set_id>/toggle/", views.set_toggle, name="set_toggle"),
     path("workout/set/<int:set_id>/score/", views.set_score, name="set_score"),
+    path("workout/set/<int:set_id>/shot/", views.set_shot, name="set_shot"),
 ]

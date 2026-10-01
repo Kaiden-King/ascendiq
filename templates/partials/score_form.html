@@ -1,0 +1,24 @@
+{% comment %}
+  The two number boxes. Typing saves 300ms after the last digit (only the status
+  line is swapped, so the cursor stays put). After a +MAKE/+MISS tap, this whole
+  form is redrawn with the new counts, and the status line comes "out of band".
+  hx-sync: a newer keystroke cancels an older save still in flight.
+{% endcomment %}
+<form class="score__form" id="score-form-{{ set.id }}"
+      hx-post="{% url 'set_score' set.id %}"
+      hx-trigger="input delay:300ms"
+      hx-sync="this:replace"
+      hx-target="#score-status-{{ set.id }}"
+      hx-swap="outerHTML">
+  <label class="score__box">
+    <span>Made</span>
+    <input type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="999"
+           name="made" value="{{ set.made }}" enterkeyhint="next">
+  </label>
+  <label class="score__box">
+    <span>Attempted</span>
+    <input type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="999"
+           name="attempted" value="{{ set.attempted }}" enterkeyhint="done">
+  </label>
+</form>
+{% if oob_status %}{% include "partials/score_status.html" with pct=set.pct saved=True oob=True %}{% endif %}

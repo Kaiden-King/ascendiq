@@ -10,6 +10,15 @@
     {% if pct is not None %}
       <p class="done__big">{{ pct }}<span>%</span></p>
       <p class="done__label">Shooting · {{ made }} of {{ attempted }}</p>
+      {% if change is not None %}
+        <p class="delta {% if change > 0 %}delta--up{% elif change < 0 %}delta--down{% endif %}">
+          {% if change > 0 %}▲ {{ change }} points better than last session
+          {% elif change < 0 %}▼ {{ change|stringformat:"d"|cut:"-" }} points below last session
+          {% else %}Same as last session{% endif %}
+        </p>
+      {% elif not previous %}
+        <p class="delta">Your first logged session. This is the number to beat.</p>
+      {% endif %}
     {% else %}
       <p class="done__label">No shots logged today</p>
     {% endif %}
