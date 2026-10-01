@@ -1,6 +1,8 @@
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.text import slugify
@@ -8,7 +10,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import SignupForm
 from .models import Athlete, Workout, WorkoutSet
-from .stats import minutes_between, shooting_totals
+from .stats import minutes_between, shooting_pct, shooting_totals
 from .workout_templates import GUARD_60, GUARD_60_FOCUS, create_todays_workout, todays_workout
 
 
@@ -56,6 +58,7 @@ def dashboard(request):
         context["plan_focus"] = GUARD_60_FOCUS
         context["plan_drills"] = len(GUARD_60)
         context["plan_tracked"] = sum(1 for _, _, tracks in GUARD_60 if tracks)
+        context["total"], context["last_date"] = history_numbers(athlete)
     return render(request, "dashboard.html", context)
 
 
@@ -167,6 +170,40 @@ def set_score(request, set_id):
         "saved": error is None and hint is None,
         "error": error,
         "hint": hint,
+    })
+
+
+HISTORY_PER_PAGE = 10
+
+
+def history_numbers(athlete):
+    """Total finished workouts and the date of the last one. One query each."""
+    finished = Workout.objects.filter(athlete=athlete, status="completed")
+    last = finished.order_by("-date").values_list("date", flat=True).first()
+    return finished.count(), last
+
+
+@login_required
+def history(request):
+    """Past workouts, newest first, 10 to a page."""
+    athlete = get_object_or_404(Athlete, user=request.user)
+    # Only this athlete's workouts. Sum each workout's makes/attempts in the same query.
+    workouts = (
+        Workout.objects.filter(athlete=athlete)
+        .annotate(made_total=Sum("workoutset__made"), attempted_total=Sum("workoutset__attempted"))
+        .order_by("-date", "-id")
+    )
+    page = Paginator(workouts, HISTORY_PER_PAGE).get_page(request.GET.get("page"))
+    for workout in page:
+        workout.pct = shooting_pct(workout.made_total or 0, workout.attempted_total)
+
+    total, last_date = history_numbers(athlete)
+    return render(request, "history.html", {
+        "athlete": athlete,
+        "active_tab": "record",
+        "page": page,
+        "total": total,
+        "last_date": last_date,
     })
 
 

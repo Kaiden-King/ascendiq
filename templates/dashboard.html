@@ -24,6 +24,16 @@
         <a class="btn-primary" href="{% url 'workout_today' %}">See today's workout</a>
       {% endif %}
     </section>
+
+    {# ============ HISTORY ============ #}
+    <a class="card card--pad hist-card" href="{% url 'history' %}">
+      <span>
+        <span class="eyebrow">History</span>
+        <span class="hist-card__n">{{ total }} workout{{ total|pluralize }}</span>
+        <span class="today__sub">{% if last_date %}Last session {{ last_date|date:"M j" }}{% else %}None yet{% endif %}</span>
+      </span>
+      <span class="link-more">See all</span>
+    </a>
   {% else %}
     <section class="card card--pad">
       <p class="today__head">Welcome, {{ user.username }}</p>

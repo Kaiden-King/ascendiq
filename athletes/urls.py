@@ -8,6 +8,7 @@ urlpatterns = [
     path("login/", auth_views.LoginView.as_view(redirect_authenticated_user=True), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("dashboard/", views.dashboard, name="dashboard"),
+    path("history/", views.history, name="history"),
     path("workout/today/", views.workout_today, name="workout_today"),
     path("workout/start/", views.workout_start, name="workout_start"),
     path("workout/<int:workout_id>/", views.workout_session, name="workout_session"),

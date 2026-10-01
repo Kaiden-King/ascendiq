@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}History · AscendIQ{% endblock %}
+
+{% block content %}
+  <div class="tiles">
+    <div class="tile">
+      <p class="tile__n">{{ total }}</p>
+      <p class="tile__l">Workouts</p>
+    </div>
+    <div class="tile">
+      <p class="tile__n tile__n--date">{% if last_date %}{{ last_date|date:"M j" }}{% else %}—{% endif %}</p>
+      <p class="tile__l">Last session</p>
+    </div>
+  </div>
+
+  <div class="sect">
+    <div class="sect__hd">
+      <h2>History</h2>
+      {% if page.paginator.num_pages > 1 %}<span class="sect__note">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>{% endif %}
+    </div>
+
+    {% if page.object_list %}
+      <ol class="hist">
+        {% for workout in page %}
+          <li>
+            {# Finished → summary. Unfinished → the session, which still takes taps. #}
+            <a class="hist__row" href="{% if workout.status == 'completed' %}{% url 'workout_summary' workout.id %}{% else %}{% url 'workout_session' workout.id %}{% endif %}">
+              <span class="hist__date">
+                <span class="hist__day">{{ workout.date|date:"j" }}</span>
+                <span class="hist__mon">{{ workout.date|date:"M" }}</span>
+              </span>
+              <span class="hist__body">
+                <span class="hist__focus">{{ workout.focus|default:"Workout" }}</span>
+                <span class="hist__meta">
+                  {% if workout.status == "completed" %}
+                    {% if workout.duration_min %}{{ workout.duration_min }} min{% else %}Finished{% endif %}
+                  {% else %}
+                    Not finished
+                  {% endif %}
+                </span>
+              </span>
+              <span class="hist__pct">{% if workout.pct is not None %}{{ workout.pct }}%{% else %}—{% endif %}</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <div class="card empty">
+        <p>No workouts yet. Your first one shows up here when you finish it.</p>
+        <a class="link-more" href="{% url 'workout_today' %}">See today's workout</a>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if page.has_other_pages %}
+    <nav class="pager" aria-label="History pages">
+      {% if page.has_previous %}<a class="btn-ghost" href="?page={{ page.previous_page_number }}">Newer</a>{% else %}<span></span>{% endif %}
+      {% if page.has_next %}<a class="btn-ghost" href="?page={{ page.next_page_number }}">Older</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}
