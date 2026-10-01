@@ -156,7 +156,9 @@ LOGOUT_REDIRECT_URL = 'home'
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# Maryland time, so "today" flips at local midnight, not 8pm.
+# Use timezone.localdate() for "today" in code — never date.today().
+TIME_ZONE = 'America/New_York'
 
 USE_I18N = True
 

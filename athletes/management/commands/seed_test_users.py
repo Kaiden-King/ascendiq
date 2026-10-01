@@ -15,6 +15,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.utils import timezone
 
 from athletes.models import Athlete, Workout, WorkoutSet
 
@@ -47,7 +48,7 @@ class Command(BaseCommand):
             raise CommandError(" ".join(error.messages))
 
         User = get_user_model()
-        today = datetime.date.today()
+        today = timezone.localdate()
 
         for info in TEST_ATHLETES:
             if User.objects.filter(username=info["username"]).exists():

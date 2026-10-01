@@ -39,6 +39,7 @@ class Workout(models.Model):
     focus = models.CharField(max_length=60, blank=True)
     duration_min = models.IntegerField(null=True, blank=True)
     status = models.CharField(max_length=20, default="in_progress")
+    started_at = models.DateTimeField(null=True, blank=True)  # set on Start; finish uses it for duration
 
     class Meta:
         ordering = ["-date"]  # newest first
@@ -56,6 +57,9 @@ class WorkoutSet(models.Model):
     completed = models.BooleanField(default=False)
     made = models.IntegerField(null=True, blank=True)
     attempted = models.IntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["id"]  # drills stay in the order the workout created them
 
     def __str__(self):
         return self.drill_name

@@ -8,11 +8,21 @@
 
 {% block content %}
   {% if athlete %}
-    {# Step 15 replaces this card with today's real workout and a Start button. #}
+    {# ============ TODAY — the daily action, above everything ============ #}
     <section class="today">
-      <p class="eyebrow">Today</p>
-      <p class="today__head">Workout logging is coming next</p>
-      <p class="today__sub">This card becomes today's workout and the Start button.</p>
+      {% if workout %}
+        <p class="eyebrow">Today · {{ workout.focus }}</p>
+        <p class="today__head">{% if workout.status == "completed" %}Workout finished{% else %}Workout in progress{% endif %}</p>
+        <p class="today__sub">Started {{ workout.started_at|time:"g:i A" }}</p>
+        <a class="btn-primary" href="{% url 'workout_today' %}">
+          {% if workout.status == "completed" %}See today's workout{% else %}Continue workout{% endif %}
+        </a>
+      {% else %}
+        <p class="eyebrow">Today · {{ plan_focus }}</p>
+        <p class="today__head">Ball handling &amp; shooting</p>
+        <p class="today__sub">{{ plan_drills }} drills · {{ plan_tracked }} tracked for makes</p>
+        <a class="btn-primary" href="{% url 'workout_today' %}">See today's workout</a>
+      {% endif %}
     </section>
   {% else %}
     <section class="card card--pad">
