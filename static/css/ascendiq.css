@@ -81,7 +81,9 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;            /* fixed to the screen: .main scrolls, nav stays put */
+  max-width: 480px;          /* phone-width column on laptops too */
+  margin: 0 auto;
   overflow: hidden;
 }
 
@@ -395,3 +397,19 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
   font-size: 15px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
 }
 a.btn-primary { display: flex; align-items: center; justify-content: center; }
+
+/* ===================== app shell additions ===================== */
+/* Initials avatar — drawn here so no athlete's name goes to an outside service */
+.avatar--initials {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--avatar-empty);
+  border: 1px solid var(--orange-line);
+  color: var(--orange-lt); font-size: 14px; font-weight: 700; letter-spacing: .02em;
+}
+.nav__icon {
+  width: 22px; height: 22px;
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.nav__item--soon { opacity: .4; cursor: default; }

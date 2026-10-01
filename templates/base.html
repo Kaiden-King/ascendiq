@@ -1,0 +1,65 @@
+{% load static django_htmx %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#001D3A">{# phone status bar; must be a literal colour, matches --bg #}
+  <title>{% block title %}AscendIQ{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/ascendiq.css' %}">
+  {# HTMX 2, served from our own site by django-htmx — no outside CDN #}
+  {% htmx_script %}
+</head>
+
+{# Every HTMX request carries the CSRF token. Without this, every hx-post fails with 403. #}
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<div class="app">
+
+  <div class="glow glow--warm" aria-hidden="true"></div>
+  <div class="glow glow--cool" aria-hidden="true"></div>
+
+  {% block header %}
+  <header class="hdr">
+    <div class="hdr__me">
+      {# Initials drawn locally — never send an athlete's name to an avatar service #}
+      <span class="avatar avatar--initials" aria-hidden="true">{{ athlete.initials }}</span>
+      <span>
+        <span class="eyebrow">Welcome back</span>
+        <h1 class="hdr__name">{{ athlete.full_name }}</h1>
+      </span>
+    </div>
+  </header>
+  {% endblock %}
+
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block nav %}
+  {# Unbuilt sections are shown dimmed and can't be tapped. Turn each into a link the week it's built. #}
+  <nav class="nav" aria-label="Main">
+    <a href="{% url 'dashboard' %}" class="nav__item" {% if active_tab == 'record' %}aria-current="page"{% endif %}>
+      <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <span>Record</span>
+    </a>
+    <span class="nav__item nav__item--soon" aria-disabled="true" title="Coming in week 3">
+      <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8.5" cy="11" r="2.5"/><path d="M5.5 16.5c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M14 10h5M14 14h4"/></svg>
+      <span>Profile</span>
+    </span>
+    <span class="nav__item nav__item--soon" aria-disabled="true" title="Coming in week 4">
+      <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
+      <span>Coach</span>
+    </span>
+    <span class="nav__item nav__item--soon" aria-disabled="true" title="Coming in week 4">
+      <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h6"/></svg>
+      <span>Hub</span>
+    </span>
+    <span class="nav__item nav__item--soon" aria-disabled="true" title="Coming later">
+      <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+      <span>Settings</span>
+    </span>
+  </nav>
+  {% endblock %}
+
+</div>
+</body>
+</html>

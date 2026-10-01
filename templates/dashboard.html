@@ -1,17 +1,27 @@
-{% extends "public_base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Dashboard · AscendIQ{% endblock %}
 
+{% block header %}
+  {% if athlete %}{{ block.super }}{% endif %}
+{% endblock %}
+
 {% block content %}
-  {# Placeholder until week 2 swaps in the real dashboard from app-starter. #}
   {% if athlete %}
-    <h1 class="page__title">Welcome, {{ athlete.full_name }}</h1>
-    <p class="page__lede">Your dashboard fills in here once you start logging workouts.</p>
+    {# Step 15 replaces this card with today's real workout and a Start button. #}
+    <section class="today">
+      <p class="eyebrow">Today</p>
+      <p class="today__head">Workout logging is coming next</p>
+      <p class="today__sub">This card becomes today's workout and the Start button.</p>
+    </section>
   {% else %}
-    <h1 class="page__title">Welcome, {{ user.username }}</h1>
-    <p class="page__lede">This login has no athlete profile — it's an admin account.</p>
+    <section class="card card--pad">
+      <p class="today__head">Welcome, {{ user.username }}</p>
+      <p class="today__sub">This login has no athlete profile — it's an admin account.</p>
+    </section>
   {% endif %}
 
+  {# Moves to Settings once that page exists. #}
   <form method="post" action="{% url 'logout' %}">
     {% csrf_token %}
     <button type="submit" class="btn-ghost">Log out</button>

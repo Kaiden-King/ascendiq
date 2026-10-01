@@ -46,4 +46,4 @@ def signup(request):
 def dashboard(request):
     # Only ever the logged-in user's own athlete. Admin logins have none.
     athlete = Athlete.objects.filter(user=request.user).first()
-    return render(request, "dashboard.html", {"athlete": athlete})
+    return render(request, "dashboard.html", {"athlete": athlete, "active_tab": "record"})

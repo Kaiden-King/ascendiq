@@ -73,7 +73,7 @@ class Command(BaseCommand):
                         date=today - datetime.timedelta(days=days_ago),
                         focus=focus,
                         duration_min=60,
-                        status="complete",
+                        status="completed",
                     )
                     WorkoutSet.objects.create(
                         workout=workout, drill_name="Form shooting",

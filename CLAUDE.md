@@ -6,7 +6,8 @@ app is second priority when the two collide.
 
 ## Current focus
 
-**Week 1 — accounts, database, authentication, live URL.**
+**Week 2 — the workout loop (steps 13–21).** Open the app → today's workout →
+Start → check off drills → makes/attempts on shooting drills → Finish → history.
 
 Do not build ahead of this. If something later in the plan would help, say so;
 don't write it.
