@@ -27,8 +27,7 @@
         {% endif %}
       {% endfor %}
 
-      {# Suggestions for the two free-text boxes. You can still type anything. #}
-      <datalist id="archetypes">{% for a in archetypes %}<option value="{{ a }}">{% endfor %}</datalist>
+      {# Suggestions for the position box. You can still type anything. #}
       <datalist id="positions">{% for p in positions %}<option value="{{ p }}">{% endfor %}</datalist>
 
       <button type="submit" class="btn-primary">Save</button>

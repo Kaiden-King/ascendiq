@@ -19,11 +19,6 @@ class SignupForm(UserCreationForm):
         fields = ["full_name", "username"]
 
 
-ARCHETYPES = [
-    "Floor general", "Shot-creating guard", "Combo guard", "Sharpshooter",
-    "Slasher", "3&D wing", "Two-way wing", "Point forward",
-    "Stretch big", "Rim protector", "Post scorer",
-]
 POSITIONS = ["Point guard", "Shooting guard", "Small forward", "Power forward", "Center"]
 
 # Only these sites are allowed in highlight links — a minor's profile shouldn't
@@ -45,13 +40,13 @@ class ProfileForm(forms.ModelForm):
     wingspan_extra = forms.IntegerField(label="Inches", required=False, min_value=0, max_value=11, widget=number_widget("6"))
 
     field_order = [
-        "full_name", "archetype", "position", "grad_year", "school",
+        "full_name", "position", "grad_year", "school",
         "height_ft", "height_extra", "weight_lb", "wingspan_ft", "wingspan_extra", "gpa",
     ]
 
     class Meta:
         model = Athlete
-        fields = ["full_name", "archetype", "position", "grad_year", "school", "weight_lb", "gpa"]
+        fields = ["full_name", "position", "grad_year", "school", "weight_lb", "gpa"]
         labels = {
             "full_name": "Your name",
             "grad_year": "Class of",
@@ -59,7 +54,6 @@ class ProfileForm(forms.ModelForm):
             "gpa": "GPA",
         }
         widgets = {
-            "archetype": forms.TextInput(attrs={"list": "archetypes", "placeholder": "e.g. 3&D wing"}),
             "position": forms.TextInput(attrs={"list": "positions", "placeholder": "e.g. Point guard"}),
             "grad_year": number_widget("2027"),
             "weight_lb": number_widget("175"),

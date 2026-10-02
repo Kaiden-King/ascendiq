@@ -13,7 +13,6 @@ class Athlete(models.Model):
     school = models.CharField(max_length=120, blank=True)
     grad_year = models.IntegerField(null=True, blank=True)
     position = models.CharField(max_length=40, blank=True)
-    archetype = models.CharField(max_length=60, blank=True)  # playing style, e.g. "3&D wing"
     height_in = models.IntegerField(null=True, blank=True)
     weight_lb = models.IntegerField(null=True, blank=True)
     wingspan_in = models.IntegerField(null=True, blank=True)

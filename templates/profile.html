@@ -10,7 +10,6 @@
   <section class="who">
     <span class="who__avatar" aria-hidden="true">{{ athlete.initials }}</span>
     <h1 class="who__name">{{ athlete.full_name }}</h1>
-    {% if athlete.archetype %}<p class="who__archetype">{{ athlete.archetype }}</p>{% endif %}
     <p class="who__meta">
       {% if athlete.position %}{{ athlete.position }}{% endif %}
       {% if athlete.position and athlete.grad_year %} · {% endif %}

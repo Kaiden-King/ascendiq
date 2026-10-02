@@ -198,7 +198,7 @@ class ProfileTests(TestCase):
         self.client.force_login(self.user)
 
     def edit(self, **changes):
-        data = {"full_name": "Me Myself", "archetype": "", "position": "", "grad_year": "",
+        data = {"full_name": "Me Myself", "position": "", "grad_year": "",
                 "school": "", "weight_lb": "", "gpa": "", "height_ft": "", "height_extra": "",
                 "wingspan_ft": "", "wingspan_extra": ""}
         data.update(changes)

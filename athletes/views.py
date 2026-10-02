@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
-from .forms import ARCHETYPES, POSITIONS, HighlightForm, ProfileForm, SignupForm
+from .forms import POSITIONS, HighlightForm, ProfileForm, SignupForm
 from .models import Athlete, Highlight, Workout, WorkoutSet
 from .stats import minutes_between, pct_change, shooting_pct, shooting_totals
 from .workout_templates import GUARD_60, GUARD_60_FOCUS, create_todays_workout, todays_workout
@@ -378,7 +378,6 @@ def profile_edit(request):
         "athlete": athlete,
         "active_tab": "profile",
         "form": form,
-        "archetypes": ARCHETYPES,
         "positions": POSITIONS,
     })
 

@@ -624,11 +624,6 @@ a.btn-primary { display: flex; align-items: center; justify-content: center; }
   color: var(--orange-lt); font-size: 30px; font-weight: 700;
 }
 .who__name { margin: 0; font-size: 26px; font-weight: 700; color: var(--text); }
-.who__archetype {
-  margin: 8px 0 0; padding: 4px 12px; border-radius: 999px;
-  background: var(--orange-wash); border: 1px solid var(--orange-line);
-  color: var(--orange-lt); font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-}
 .who__meta { margin: 10px 0 0; font-size: 16px; color: var(--body); }
 .who__school { margin: 2px 0 0; font-size: 16px; color: var(--muted); }
 .who__edit { margin-top: 18px; }
