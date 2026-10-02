@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Edit profile · AscendIQ{% endblock %}
+
+{% block content %}
+  <div class="sect">
+    <div class="sect__hd">
+      <h2>Edit profile</h2>
+      <a class="link-more" href="{% url 'profile' %}">Cancel</a>
+    </div>
+
+    <form method="post" class="card card--pad" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+
+      {% for field in form %}
+        {% if field.name == "height_ft" %}
+          {% include "partials/ft_in_field.html" with label="Height" ft=form.height_ft extra=form.height_extra %}
+        {% elif field.name == "wingspan_ft" %}
+          {% include "partials/ft_in_field.html" with label="Wingspan" ft=form.wingspan_ft extra=form.wingspan_extra hint="Fingertip to fingertip, arms out." %}
+        {% elif field.name != "height_extra" and field.name != "wingspan_extra" %}
+          <div class="field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {{ field.errors }}
+          </div>
+        {% endif %}
+      {% endfor %}
+
+      {# Suggestions for the two free-text boxes. You can still type anything. #}
+      <datalist id="archetypes">{% for a in archetypes %}<option value="{{ a }}">{% endfor %}</datalist>
+      <datalist id="positions">{% for p in positions %}<option value="{{ p }}">{% endfor %}</datalist>
+
+      <button type="submit" class="btn-primary">Save</button>
+    </form>
+  </div>
+{% endblock %}

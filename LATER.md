@@ -26,6 +26,9 @@ Add to this instead of building. Nothing here is a bad idea.
   initiate, verified coach identity, text only, everything logged.
 - **"Run It" pickup games.** Courts not people — never show one athlete how
   far away another is.
+- **Connections and followers.** Who can follow a minor, whether follower lists
+  are visible, how adults are kept out. A follower list shows strangers who a
+  teenager is connected to. Decided 2026-10-02: leave out until this is designed.
 
 ## Second sport
 - Football, then soccer. Sport config seam is already in the schema:

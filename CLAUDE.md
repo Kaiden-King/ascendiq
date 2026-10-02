@@ -6,8 +6,9 @@ app is second priority when the two collide.
 
 ## Current focus
 
-**Week 2 — the workout loop (steps 13–21).** Open the app → today's workout →
-Start → check off drills → makes/attempts on shooting drills → Finish → history.
+**Week 3 — charts and the public profile (steps 22–30).** stats.py + tests,
+two dashboard charts, consent screen, public profile at /a/<slug>/ (no login,
+404 if private), Open Graph preview, speed. Step 21 (real practice) still to do.
 
 Do not build ahead of this. If something later in the plan would help, say so;
 don't write it.

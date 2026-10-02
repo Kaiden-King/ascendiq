@@ -608,3 +608,62 @@ a.btn-primary { display: flex; align-items: center; justify-content: center; }
 .delta { margin: 10px 0 0; font-size: 16px; font-weight: 700; color: var(--muted); }
 .delta--up { color: var(--orange-lt); }
 .delta--down { color: var(--down); }
+
+/* ===================== my profile ===================== */
+.hdr__name { display: block; }   /* now a span inside a link, was an h1 */
+.who {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 28px 20px 20px;
+  background: linear-gradient(145deg, var(--today-from), var(--today-to));
+  border: 1px solid var(--orange-line); border-radius: var(--r-lg);
+}
+.who__avatar {
+  width: 84px; height: 84px; border-radius: 50%;
+  display: grid; place-items: center; margin-bottom: 12px;
+  background: var(--avatar-empty); border: 2px solid var(--orange);
+  color: var(--orange-lt); font-size: 30px; font-weight: 700;
+}
+.who__name { margin: 0; font-size: 26px; font-weight: 700; color: var(--text); }
+.who__archetype {
+  margin: 8px 0 0; padding: 4px 12px; border-radius: 999px;
+  background: var(--orange-wash); border: 1px solid var(--orange-line);
+  color: var(--orange-lt); font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+}
+.who__meta { margin: 10px 0 0; font-size: 16px; color: var(--body); }
+.who__school { margin: 2px 0 0; font-size: 16px; color: var(--muted); }
+.who__edit { margin-top: 18px; }
+.who__private { margin: 10px 0 0; font-size: 14px; color: var(--muted); }
+
+.measures { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); }
+.measures .tile { padding: 14px 8px; }
+.measures .tile__n { font-size: 24px; }
+
+.hls { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.hl {
+  display: flex; align-items: center;
+  background: var(--card); border: 1px solid var(--card-line); border-radius: var(--r-md);
+}
+.hl__link { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 14px; }
+.hl__play {
+  flex-shrink: 0; width: 36px; height: 36px; padding: 9px 8px 9px 10px; border-radius: 50%;
+  background: var(--orange); fill: var(--text);
+}
+.hl__title { font-size: 16px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hl__remove { width: 52px; min-height: 60px; color: var(--muted); font-size: 18px; }
+.hl-add summary { display: flex; align-items: center; min-height: 44px; font-size: 14px; cursor: pointer; list-style: none; }
+.hl-add summary::-webkit-details-marker { display: none; }
+.hl-add[open] summary { margin-bottom: 12px; }
+
+/* feet + inches side by side */
+.ft-in { border: 0; padding: 0; min-width: 0; }
+.ft-in legend { padding: 0; margin-bottom: 6px; font-size: 16px; font-weight: 700; color: var(--text); }
+.ft-in__boxes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ft-in__box { position: relative; display: block; }
+.ft-in__box span { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; pointer-events: none; }
+
+/* form fields inside app pages (the public pages already use .field) */
+.card .field input, .card .field select {
+  width: 100%; min-height: var(--tap); padding: 10px 14px;
+  font: inherit; font-size: 16px; color: var(--text);
+  background: var(--well); border: 1px solid var(--card-line); border-radius: var(--r-sm);
+}

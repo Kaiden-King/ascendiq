@@ -1,0 +1,10 @@
+{# One measurement typed as feet + inches, side by side. #}
+<fieldset class="field ft-in">
+  <legend>{{ label }}</legend>
+  <div class="ft-in__boxes">
+    <label class="ft-in__box">{{ ft }}<span>ft</span></label>
+    <label class="ft-in__box">{{ extra }}<span>in</span></label>
+  </div>
+  {{ ft.errors }}{{ extra.errors }}
+  {% if hint %}<p class="field__help">{{ hint }}</p>{% endif %}
+</fieldset>

@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-from .stats import shooting_pct
+from .stats import feet_and_inches, shooting_pct
 
 
 class Athlete(models.Model):
@@ -13,14 +13,24 @@ class Athlete(models.Model):
     school = models.CharField(max_length=120, blank=True)
     grad_year = models.IntegerField(null=True, blank=True)
     position = models.CharField(max_length=40, blank=True)
+    archetype = models.CharField(max_length=60, blank=True)  # playing style, e.g. "3&D wing"
     height_in = models.IntegerField(null=True, blank=True)
     weight_lb = models.IntegerField(null=True, blank=True)
+    wingspan_in = models.IntegerField(null=True, blank=True)
     gpa = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
     is_public = models.BooleanField(default=False)  # opt in, never out
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.full_name
+
+    @property
+    def height_display(self):
+        return feet_and_inches(self.height_in)
+
+    @property
+    def wingspan_display(self):
+        return feet_and_inches(self.wingspan_in)
 
     @property
     def initials(self):
@@ -92,3 +102,18 @@ class Measurement(models.Model):
 
     def __str__(self):
         return f"{self.athlete} · {self.metric} {self.value}{self.unit}"
+
+
+class Highlight(models.Model):
+    """A link to a highlight video on YouTube, Hudl or Vimeo. No uploads (yet)."""
+
+    athlete = models.ForeignKey(Athlete, on_delete=models.CASCADE)
+    title = models.CharField(max_length=80)
+    url = models.URLField(max_length=300)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]  # newest first
+
+    def __str__(self):
+        return self.title

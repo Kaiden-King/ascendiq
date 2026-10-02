@@ -10,8 +10,8 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
-from .forms import SignupForm
-from .models import Athlete, Workout, WorkoutSet
+from .forms import ARCHETYPES, POSITIONS, HighlightForm, ProfileForm, SignupForm
+from .models import Athlete, Highlight, Workout, WorkoutSet
 from .stats import minutes_between, pct_change, shooting_pct, shooting_totals
 from .workout_templates import GUARD_60, GUARD_60_FOCUS, create_todays_workout, todays_workout
 
@@ -334,3 +334,77 @@ def workout_summary(request, workout_id):
         "attempted": attempted,
         "pct": pct,
     })
+
+
+MAX_HIGHLIGHTS = 8
+
+
+def profile_context(athlete, highlight_form):
+    """Everything the profile page shows. Shared by the page and a failed highlight add."""
+    total, _ = history_numbers(athlete)
+    finished = Workout.objects.filter(athlete=athlete, status="completed").aggregate(
+        made=Sum("workoutset__made"), attempted=Sum("workoutset__attempted")
+    )
+    highlights = list(athlete.highlight_set.all())
+    return {
+        "athlete": athlete,
+        "active_tab": "profile",
+        "highlights": highlights,
+        "total": total,
+        "season_pct": shooting_pct(finished["made"] or 0, finished["attempted"]),
+        "highlight_form": highlight_form,
+        "can_add_highlight": len(highlights) < MAX_HIGHLIGHTS,
+    }
+
+
+@login_required
+def profile(request):
+    """Your own profile. Only you can see this page — public profiles are separate."""
+    athlete = get_object_or_404(Athlete, user=request.user)
+    return render(request, "profile.html", profile_context(athlete, HighlightForm()))
+
+
+@login_required
+def profile_edit(request):
+    athlete = get_object_or_404(Athlete, user=request.user)
+    if request.method == "POST":
+        form = ProfileForm(request.POST, instance=athlete)
+        if form.is_valid():
+            form.save()
+            return redirect("profile")
+    else:
+        form = ProfileForm(instance=athlete)
+    return render(request, "profile_edit.html", {
+        "athlete": athlete,
+        "active_tab": "profile",
+        "form": form,
+        "archetypes": ARCHETYPES,
+        "positions": POSITIONS,
+    })
+
+
+@login_required
+@require_POST
+def highlight_add(request):
+    athlete = get_object_or_404(Athlete, user=request.user)
+    form = HighlightForm(request.POST)
+    if athlete.highlight_set.count() >= MAX_HIGHLIGHTS:
+        form.add_error(None, f"You can have up to {MAX_HIGHLIGHTS} highlights. Remove one first.")
+    if form.is_valid():
+        highlight = form.save(commit=False)
+        highlight.athlete = athlete
+        highlight.save()
+        return redirect("profile")
+    # Show the profile again, with the add form open and its error messages.
+    context = profile_context(athlete, form)
+    context["open_highlight_form"] = True
+    return render(request, "profile.html", context, status=400)
+
+
+@login_required
+@require_POST
+def highlight_delete(request, highlight_id):
+    # Access check in the query: only your own highlights can be removed.
+    highlight = get_object_or_404(Highlight, id=highlight_id, athlete__user=request.user)
+    highlight.delete()
+    return redirect("profile")

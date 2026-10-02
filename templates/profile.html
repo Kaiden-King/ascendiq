@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}My profile · AscendIQ{% endblock %}
+
+{# This page has its own big header, so the small one is left out. #}
+{% block header %}{% endblock %}
+
+{% block content %}
+  {# ============ WHO ============ #}
+  <section class="who">
+    <span class="who__avatar" aria-hidden="true">{{ athlete.initials }}</span>
+    <h1 class="who__name">{{ athlete.full_name }}</h1>
+    {% if athlete.archetype %}<p class="who__archetype">{{ athlete.archetype }}</p>{% endif %}
+    <p class="who__meta">
+      {% if athlete.position %}{{ athlete.position }}{% endif %}
+      {% if athlete.position and athlete.grad_year %} · {% endif %}
+      {% if athlete.grad_year %}Class of {{ athlete.grad_year }}{% endif %}
+    </p>
+    {% if athlete.school %}<p class="who__school">{{ athlete.school }}</p>{% endif %}
+    <a class="btn-ghost who__edit" href="{% url 'profile_edit' %}">Edit profile</a>
+    <p class="who__private">Only you can see this page.</p>
+  </section>
+
+  {# ============ MEASUREMENTS ============ #}
+  <section class="sect">
+    <div class="sect__hd"><h2>Measurements</h2></div>
+    <div class="measures">
+      <div class="tile">
+        <p class="tile__n">{{ athlete.height_display|default:"—" }}</p>
+        <p class="tile__l">Height</p>
+      </div>
+      <div class="tile">
+        <p class="tile__n">{% if athlete.weight_lb %}{{ athlete.weight_lb }}<span> lb</span>{% else %}—{% endif %}</p>
+        <p class="tile__l">Weight</p>
+      </div>
+      <div class="tile">
+        <p class="tile__n">{{ athlete.wingspan_display|default:"—" }}</p>
+        <p class="tile__l">Wingspan</p>
+      </div>
+    </div>
+    {% if not athlete.height_in and not athlete.weight_lb and not athlete.wingspan_in %}
+      <p class="today__sub">Add your measurements with <a class="link-more" href="{% url 'profile_edit' %}">Edit profile</a>.</p>
+    {% endif %}
+  </section>
+
+  {# ============ TRAINING ============ #}
+  <section class="sect">
+    <div class="sect__hd"><h2>Training</h2></div>
+    <div class="tiles">
+      <div class="tile">
+        <p class="tile__n">{{ total }}</p>
+        <p class="tile__l">Workouts</p>
+      </div>
+      <div class="tile">
+        <p class="tile__n">{% if season_pct is not None %}{{ season_pct }}<span>%</span>{% else %}—{% endif %}</p>
+        <p class="tile__l">Shooting</p>
+      </div>
+    </div>
+  </section>
+
+  {# ============ HIGHLIGHTS ============ #}
+  <section class="sect">
+    <div class="sect__hd">
+      <h2>Highlights</h2>
+      <span class="sect__note">YouTube · Hudl · Vimeo</span>
+    </div>
+
+    {% if highlights %}
+      <ul class="hls">
+        {% for highlight in highlights %}
+          <li class="hl">
+            {# rel="noopener noreferrer": the video site can't reach back into this page #}
+            <a class="hl__link" href="{{ highlight.url }}" target="_blank" rel="noopener noreferrer">
+              <svg class="hl__play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+              <span class="hl__title">{{ highlight.title }}</span>
+            </a>
+            <form method="post" action="{% url 'highlight_delete' highlight.id %}"
+                  onsubmit="return confirm('Remove “{{ highlight.title|escapejs }}”?');">
+              {% csrf_token %}
+              <button type="submit" class="hl__remove" aria-label="Remove {{ highlight.title }}">✕</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="today__sub">No highlights yet. Paste a link to your best clips.</p>
+    {% endif %}
+
+    {% if can_add_highlight %}
+      <details class="card card--pad hl-add" {% if open_highlight_form %}open{% endif %}>
+        <summary class="link-more">+ Add a highlight</summary>
+        <form method="post" action="{% url 'highlight_add' %}">
+          {% csrf_token %}
+          {% include "registration/form_fields.html" with form=highlight_form %}
+          <button type="submit" class="btn-primary">Save highlight</button>
+        </form>
+      </details>
+    {% endif %}
+  </section>
+{% endblock %}
