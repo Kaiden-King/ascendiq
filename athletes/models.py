@@ -18,6 +18,7 @@ class Athlete(models.Model):
     wingspan_in = models.IntegerField(null=True, blank=True)
     gpa = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
     is_public = models.BooleanField(default=False)  # opt in, never out
+    on_leaderboard = models.BooleanField(default=False)  # opt in: "Kaiden K." shown to others in the same grade
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

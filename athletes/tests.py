@@ -9,10 +9,12 @@ import datetime
 
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase, override_settings
+from django.utils import timezone
 
 from .models import Athlete, Highlight, Workout, WorkoutSet
 from .stats import (
-    feet_and_inches, minutes_between, pct_change, shooting_pct, shooting_totals, weekly_series,
+    feet_and_inches, grad_year_for, grade_for, minutes_between, pct_change, shooting_pct,
+    shooting_totals, short_name, streak, weekly_series,
 )
 
 # ---------------------------------------------------------------------------
@@ -250,3 +252,114 @@ class ProfileTests(TestCase):
         mine = Highlight.objects.create(athlete=self.athlete, title="Mine", url="https://youtu.be/m")
         self.client.post(f"/profile/highlights/{mine.id}/delete/")
         self.assertFalse(Highlight.objects.filter(id=mine.id).exists())
+
+
+# ---------------------------------------------------------------------------
+# 4. Leaderboards
+# ---------------------------------------------------------------------------
+
+
+class GradeAndStreakTests(SimpleTestCase):
+    today = datetime.date(2026, 10, 2)  # 2026–27 school year
+
+    def test_grade_from_class_year(self):
+        self.assertEqual(grade_for(2027, self.today), 12)
+        self.assertEqual(grade_for(2031, self.today), 8)
+        self.assertEqual(grade_for(2032, self.today), 7)
+        self.assertIsNone(grade_for(None, self.today))
+
+    def test_school_year_rolls_over_in_july(self):
+        self.assertEqual(grade_for(2027, datetime.date(2027, 6, 1)), 12)
+        self.assertEqual(grade_for(2028, datetime.date(2027, 8, 1)), 12)
+
+    def test_streak(self):
+        day = datetime.timedelta(days=1)
+        t = self.today
+        self.assertEqual(streak([t, t - day, t - 2 * day], t), 3)
+        self.assertEqual(streak([t - day, t - 2 * day], t), 2)  # nothing today yet: still alive
+        self.assertEqual(streak([t - 3 * day], t), 0)
+        self.assertEqual(streak([], t), 0)
+
+    def test_short_name(self):
+        self.assertEqual(short_name("Kaiden King"), "Kaiden K.")
+        self.assertEqual(short_name("Mary Ann Smith"), "Mary S.")
+        self.assertEqual(short_name("Cher"), "Cher")
+
+
+@override_settings(STORAGES=PLAIN_STATIC)
+class LeaderboardTests(TestCase):
+    def setUp(self):
+        self.today = timezone.localdate()
+        self.grade12 = grad_year_for(12, self.today)
+        self.me = self.make("me", "Kaiden King", self.grade12, on=True, workouts=2)
+        for i, count in enumerate([5, 3, 1]):
+            self.make(f"p{i}", f"Player{i} Surname{i}", self.grade12, on=True, workouts=count)
+        self.client.force_login(self.me.user)
+
+    def make(self, username, name, grad_year, on, workouts=0, shots=(40, 50)):
+        user = get_user_model().objects.create_user(username, password="unused-pw-123")
+        athlete = Athlete.objects.create(user=user, full_name=name, slug=username,
+                                         grad_year=grad_year, on_leaderboard=on)
+        for i in range(workouts):
+            w = Workout.objects.create(athlete=athlete, date=self.today - datetime.timedelta(days=i % 1),
+                                       status="completed")
+            WorkoutSet.objects.create(workout=w, drill_name="Shooting", made=shots[0], attempted=shots[1])
+        return athlete
+
+    def board(self, **params):
+        response = self.client.get("/leaderboard/", params)
+        self.assertEqual(response.status_code, 200)
+        return response.context
+
+    def test_ranked_by_workouts_this_week(self):
+        rows = self.board(grade=12, stat="workouts")["rows"]
+        self.assertEqual([r["value"] for r in rows], [5, 3, 2, 1])
+
+    def test_short_names_only(self):
+        page = self.client.get("/leaderboard/", {"grade": 12}).content.decode()
+        self.assertIn("Kaiden K.", page)
+        self.assertIn("Player0 S.", page)
+        self.assertNotIn("Surname0", page)
+
+    def test_opted_out_athlete_never_appears(self):
+        self.make("hidden", "Hidden Person", self.grade12, on=False, workouts=9)
+        names = [r["name"] for r in self.board(grade=12)["rows"]]
+        self.assertNotIn("Hidden P.", names)
+
+    def test_board_closed_under_four(self):
+        Athlete.objects.filter(user__username="p2").update(on_leaderboard=False)
+        context = self.board(grade=12)
+        self.assertFalse(context["is_open"])
+        self.assertEqual(context["rows"], [])
+
+    def test_below_8th_grade_never_shown(self):
+        seventh = grad_year_for(7, self.today)
+        for i in range(5):
+            self.make(f"young{i}", f"Young{i} Kid", seventh, on=True, workouts=3)
+        context = self.board(grade=7)  # not a real board: falls back to 12th
+        self.assertEqual(context["grade"], 12)
+        names = [r["name"] for r in context["rows"]]
+        self.assertFalse(any(n.startswith("Young") for n in names))
+
+    def test_grades_are_separate_boards(self):
+        eleventh = grad_year_for(11, self.today)
+        for i in range(4):
+            self.make(f"junior{i}", f"Junior{i} X", eleventh, on=True, workouts=1)
+        names12 = [r["name"] for r in self.board(grade=12)["rows"]]
+        names11 = [r["name"] for r in self.board(grade=11)["rows"]]
+        self.assertFalse(any(n.startswith("Junior") for n in names12))
+        self.assertTrue(all(n.startswith("Junior") for n in names11))
+
+    def test_shooting_needs_50_shots(self):
+        self.make("low", "Low Volume", self.grade12, on=True, workouts=1, shots=(5, 5))  # 100% on 5 shots
+        names = [r["name"] for r in self.board(grade=12, stat="shooting")["rows"]]
+        self.assertNotIn("Low V.", names)
+
+    def test_toggle_only_changes_my_own(self):
+        self.client.post("/leaderboard/toggle/", {"on": "0"})
+        self.me.refresh_from_db()
+        self.assertFalse(self.me.on_leaderboard)
+        self.assertTrue(Athlete.objects.get(user__username="p0").on_leaderboard)
+
+    def test_bad_query_values_dont_break_it(self):
+        self.assertEqual(self.board(grade="abc", stat="nope")["stat"], "workouts")

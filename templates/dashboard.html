@@ -34,6 +34,16 @@
       </span>
       <span class="link-more">See all</span>
     </a>
+
+    {# ============ LEADERBOARD ============ #}
+    <a class="card card--pad hist-card" href="{% url 'leaderboard' %}">
+      <span>
+        <span class="eyebrow">Leaderboard</span>
+        <span class="hist-card__n">See where you rank</span>
+        <span class="today__sub">By grade · workouts, streak, shooting</span>
+      </span>
+      <span class="link-more">Open</span>
+    </a>
   {% else %}
     <section class="card card--pad">
       <p class="today__head">Welcome, {{ user.username }}</p>

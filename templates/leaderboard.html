@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Leaderboard · AscendIQ{% endblock %}
+
+{% block content %}
+  <div class="sect">
+    <div class="sect__hd">
+      <h2>Leaderboard</h2>
+      <span class="sect__note">8th–12th grade</span>
+    </div>
+
+    {# Grade boards: one per grade, 8th to 12th #}
+    <nav class="chips" aria-label="Grade">
+      {% for g in grades %}
+        <a class="chip" href="?grade={{ g }}&stat={{ stat }}" {% if g == grade %}aria-current="page"{% endif %}>{{ g }}th</a>
+      {% endfor %}
+    </nav>
+
+    {# Which stat the board ranks by #}
+    <nav class="chips chips--stat" aria-label="Rank by">
+      {% for key, names in stats.items %}
+        <a class="chip" href="?grade={{ grade }}&stat={{ key }}" {% if key == stat %}aria-current="page"{% endif %}>{{ names.0 }}</a>
+      {% endfor %}
+    </nav>
+    <p class="lb-stat-note">{{ stat_note }}</p>
+  </div>
+
+  {% if not athlete.on_leaderboard %}
+    <form class="card card--pad lb-optin" method="post" action="{% url 'leaderboard_toggle' %}">
+      {% csrf_token %}
+      <input type="hidden" name="on" value="1">
+      <input type="hidden" name="next" value="leaderboard">
+      <p class="today__sub">You're not on the leaderboards. Others in your grade would see you as
+        <b>{{ my_short_name }}</b>, with your numbers. No school, no photo.</p>
+      {% if my_grade is None %}
+        <p class="today__sub">Add your class year in <a class="link-more" href="{% url 'profile_edit' %}">Edit profile</a> first.</p>
+      {% elif my_grade < 8 %}
+        <p class="today__sub">Leaderboards start in 8th grade.</p>
+      {% else %}
+        <button type="submit" class="btn-primary">Show me on leaderboards</button>
+      {% endif %}
+    </form>
+  {% endif %}
+
+  {% if is_open %}
+    {% if rows %}
+      <ol class="board card">
+        {% for row in rows %}
+          <li class="board__row{% if row.athlete_id == athlete.id %} board__row--you{% endif %}">
+            <span class="board__rank">{{ row.rank }}</span>
+            <span class="board__av" aria-hidden="true">{{ row.initials }}</span>
+            <span class="board__who">
+              <span class="board__nm">{{ row.name }}{% if row.athlete_id == athlete.id %} · You{% endif %}</span>
+            </span>
+            <span class="board__stat"><b>{{ row.label }}</b></span>
+          </li>
+        {% endfor %}
+      </ol>
+      {% if stat == "shooting" %}<p class="today__sub">Needs {{ shooting_min }}+ shots in the last 30 days to rank.</p>{% endif %}
+    {% else %}
+      <div class="card empty"><p>Nobody has {{ shooting_min }}+ shots in the last 30 days yet.</p></div>
+    {% endif %}
+  {% else %}
+    <div class="card empty">
+      <p><b>{{ grade }}th grade board opens at 4 athletes.</b></p>
+      <p>{{ opted_in }} so far — {{ needed }} more to go. Boards stay hidden until then so a short list never points at one person.</p>
+    </div>
+  {% endif %}
+
+  {% if athlete.on_leaderboard %}
+    <form method="post" action="{% url 'leaderboard_toggle' %}">
+      {% csrf_token %}
+      <input type="hidden" name="on" value="0">
+      <input type="hidden" name="next" value="leaderboard">
+      <button type="submit" class="btn-ghost">Hide me from leaderboards</button>
+    </form>
+  {% endif %}
+{% endblock %}

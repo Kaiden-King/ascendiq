@@ -57,6 +57,23 @@
     </div>
   </section>
 
+  {# ============ LEADERBOARDS ============ #}
+  <section class="sect">
+    <div class="sect__hd"><h2>Leaderboards</h2><a class="link-more" href="{% url 'leaderboard' %}">View</a></div>
+    <form class="card card--pad" method="post" action="{% url 'leaderboard_toggle' %}">
+      {% csrf_token %}
+      {% if athlete.on_leaderboard %}
+        <input type="hidden" name="on" value="0">
+        <p class="today__sub">On. Athletes in your grade see you as <b>{{ my_short_name }}</b>.</p>
+        <button type="submit" class="btn-ghost">Hide me from leaderboards</button>
+      {% else %}
+        <input type="hidden" name="on" value="1">
+        <p class="today__sub">Off. Turn on to appear on your grade's board (8th–12th) with your first name and last initial only.</p>
+        <button type="submit" class="btn-primary">Show me on leaderboards</button>
+      {% endif %}
+    </form>
+  </section>
+
   {# ============ HIGHLIGHTS ============ #}
   <section class="sect">
     <div class="sect__hd">

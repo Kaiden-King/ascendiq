@@ -662,3 +662,32 @@ a.btn-primary { display: flex; align-items: center; justify-content: center; }
   font: inherit; font-size: 16px; color: var(--text);
   background: var(--well); border: 1px solid var(--card-line); border-radius: var(--r-sm);
 }
+
+/* ===================== leaderboard ===================== */
+.chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex-shrink: 0; display: inline-flex; align-items: center;
+  min-height: 44px; padding: 0 16px; border-radius: 999px;
+  background: var(--card); border: 1px solid var(--card-line);
+  color: var(--body); font-size: 15px; font-weight: 700;
+}
+.chip[aria-current="page"] { background: var(--orange); border-color: var(--orange); color: var(--text); }
+.chips--stat .chip { font-size: 14px; }
+
+.board { margin: 0; padding: 0; list-style: none; }
+.board .board__row { min-height: 60px; }
+.board .board__rank { width: 20px; font-size: 16px; }
+.board .board__av {
+  width: 36px; height: 36px; display: grid; place-items: center;
+  color: var(--muted); font-size: 13px; font-weight: 700;
+}
+.board .board__nm { font-size: 16px; }
+.board .board__stat b { font-size: 15px; color: var(--text); }
+.board .board__row--you .board__av { color: var(--orange-lt); }
+.board .board__row--you .board__stat b { color: var(--orange-lt); }
+.empty p + p { margin-top: 6px; }
+.lb-optin b { color: var(--text); }
+/* leaderboard chips: fill the row evenly instead of scrolling off the edge */
+.chips .chip { flex: 1; justify-content: center; padding: 0 8px; }
+.lb-stat-note { margin: 0; font-size: 14px; color: var(--muted); }

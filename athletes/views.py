@@ -1,8 +1,10 @@
+import datetime
+
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import F, Q, Sum
+from django.db.models import Count, F, Q, Sum
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -12,7 +14,10 @@ from django.views.decorators.http import require_POST
 
 from .forms import POSITIONS, HighlightForm, ProfileForm, SignupForm
 from .models import Athlete, Highlight, Workout, WorkoutSet
-from .stats import minutes_between, pct_change, shooting_pct, shooting_totals
+from .stats import (
+    LEADERBOARD_GRADES, grad_year_for, grade_for, minutes_between, pct_change,
+    shooting_pct, shooting_totals, short_name, streak, week_start,
+)
 from .workout_templates import GUARD_60, GUARD_60_FOCUS, create_todays_workout, todays_workout
 
 
@@ -354,6 +359,7 @@ def profile_context(athlete, highlight_form):
         "season_pct": shooting_pct(finished["made"] or 0, finished["attempted"]),
         "highlight_form": highlight_form,
         "can_add_highlight": len(highlights) < MAX_HIGHLIGHTS,
+        "my_short_name": short_name(athlete.full_name),
     }
 
 
@@ -406,4 +412,125 @@ def highlight_delete(request, highlight_id):
     # Access check in the query: only your own highlights can be removed.
     highlight = get_object_or_404(Highlight, id=highlight_id, athlete__user=request.user)
     highlight.delete()
+    return redirect("profile")
+
+
+# --- Leaderboards -----------------------------------------------------------
+
+LEADERBOARD_MIN_ATHLETES = 4  # fewer than this and a board would point at specific kids
+# key: (chip label, what the board is ranking — shown under the chips)
+LEADERBOARD_STATS = {
+    "workouts": ("This week", "Finished workouts since Monday"),
+    "streak": ("Streak", "Days in a row with a finished workout"),
+    "shooting": ("Shooting %", "Last 30 days · 50+ shots to rank"),
+}
+SHOOTING_MIN_ATTEMPTS = 50  # so one 5-for-5 day can't top the board
+
+
+def leaderboard_rows(grade, stat, today):
+    """Ranked rows for one grade and one stat. Only opted-in athletes, 8th grade and up.
+
+    Each row holds only what the board shows: a short name, initials, the number,
+    and the athlete id (to highlight "you"). No school, no full name, no photo.
+    """
+    athletes = list(
+        Athlete.objects.filter(on_leaderboard=True, grad_year=grad_year_for(grade, today))
+    )
+    if not athletes:
+        return []
+
+    week_from = week_start(today)
+    month_from = today - datetime.timedelta(days=29)
+    finished = Workout.objects.filter(athlete__in=athletes, status="completed")
+
+    # One query per stat for the whole board, not one per athlete.
+    workouts_this_week = dict(
+        finished.filter(date__gte=week_from).values("athlete").annotate(n=Count("id")).values_list("athlete", "n")
+    )
+    shots = {
+        row["athlete"]: (row["made"] or 0, row["attempted"] or 0)
+        for row in finished.filter(date__gte=month_from).values("athlete").annotate(
+            made=Sum("workoutset__made"), attempted=Sum("workoutset__attempted")
+        )
+    }
+    recent_dates = {}
+    for athlete_id, day in finished.filter(date__gte=today - datetime.timedelta(days=366)).values_list("athlete", "date"):
+        recent_dates.setdefault(athlete_id, []).append(day)
+
+    rows = []
+    for athlete in athletes:
+        made, attempted = shots.get(athlete.id, (0, 0))
+        if stat == "workouts":
+            value = workouts_this_week.get(athlete.id, 0)
+            label = f"{value} workout{'s' if value != 1 else ''}"
+        elif stat == "streak":
+            value = streak(recent_dates.get(athlete.id, []), today)
+            label = f"{value} day{'s' if value != 1 else ''}"
+        else:  # shooting
+            if attempted < SHOOTING_MIN_ATTEMPTS:
+                continue  # not enough shots to rank fairly
+            value = shooting_pct(made, attempted)
+            label = f"{value}% · {made}/{attempted}"
+        rows.append({
+            "athlete_id": athlete.id,
+            "name": short_name(athlete.full_name),
+            "initials": athlete.initials,
+            "value": value,
+            "label": label,
+        })
+
+    rows.sort(key=lambda row: (-row["value"], row["name"]))
+    for position, row in enumerate(rows, start=1):
+        row["rank"] = position
+    return rows
+
+
+@login_required
+def leaderboard(request):
+    athlete = get_object_or_404(Athlete, user=request.user)
+    today = timezone.localdate()
+    my_grade = grade_for(athlete.grad_year, today)
+
+    try:
+        grade = int(request.GET.get("grade", my_grade or 12))
+    except ValueError:
+        grade = 12
+    if grade not in LEADERBOARD_GRADES:
+        grade = 12
+    stat = request.GET.get("stat", "workouts")
+    if stat not in LEADERBOARD_STATS:
+        stat = "workouts"
+
+    opted_in = Athlete.objects.filter(on_leaderboard=True, grad_year=grad_year_for(grade, today)).count()
+    is_open = opted_in >= LEADERBOARD_MIN_ATHLETES
+    rows = leaderboard_rows(grade, stat, today) if is_open else []
+
+    return render(request, "leaderboard.html", {
+        "athlete": athlete,
+        "active_tab": "record",
+        "grades": LEADERBOARD_GRADES,
+        "grade": grade,
+        "stats": LEADERBOARD_STATS,
+        "stat": stat,
+        "stat_note": LEADERBOARD_STATS[stat][1],
+        "rows": rows,
+        "is_open": is_open,
+        "opted_in": opted_in,
+        "needed": LEADERBOARD_MIN_ATHLETES - opted_in,
+        "my_grade": my_grade,
+        "my_short_name": short_name(athlete.full_name),
+        "shooting_min": SHOOTING_MIN_ATTEMPTS,
+    })
+
+
+@login_required
+@require_POST
+def leaderboard_toggle(request):
+    """Switch "Show me on leaderboards" on or off. Only ever your own."""
+    athlete = get_object_or_404(Athlete, user=request.user)
+    athlete.on_leaderboard = request.POST.get("on") == "1"
+    athlete.save(update_fields=["on_leaderboard"])
+    # Go back to whichever page the switch was on.
+    if request.POST.get("next") == "leaderboard":
+        return redirect("leaderboard")
     return redirect("profile")

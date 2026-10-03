@@ -76,3 +76,50 @@ def feet_and_inches(total_inches):
         return None
     feet, inches = divmod(total_inches, 12)
     return f"{feet}′{inches}″"
+
+
+# --- Leaderboards -----------------------------------------------------------
+
+LEADERBOARD_GRADES = range(8, 13)  # 8th through 12th grade; younger never appear
+
+
+def school_year_end(today):
+    """The calendar year this school year finishes in. From July it's next year's."""
+    return today.year + 1 if today.month >= 7 else today.year
+
+
+def grade_for(grad_year, today):
+    """Class of 2027, in the 2026–27 school year -> 12. None if no class year."""
+    if grad_year is None:
+        return None
+    return 12 - (grad_year - school_year_end(today))
+
+
+def grad_year_for(grade, today):
+    """The other way round: 12th grade this school year -> 2027."""
+    return school_year_end(today) + (12 - grade)
+
+
+def streak(workout_dates, today):
+    """Days in a row with a finished workout, counting back from today.
+
+    A streak isn't broken until a whole day is missed, so if there's nothing
+    today yet, it counts back from yesterday.
+    """
+    days = set(workout_dates)
+    day = today if today in days else today - datetime.timedelta(days=1)
+    count = 0
+    while day in days:
+        count += 1
+        day -= datetime.timedelta(days=1)
+    return count
+
+
+def short_name(full_name):
+    """'Kaiden King' -> 'Kaiden K.' What other athletes see on a leaderboard."""
+    parts = full_name.split()
+    if not parts:
+        return "Athlete"
+    if len(parts) == 1:
+        return parts[0]
+    return f"{parts[0]} {parts[-1][0]}."
