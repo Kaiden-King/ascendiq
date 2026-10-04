@@ -496,3 +496,37 @@ class RankingsBoardTests(TestCase):
     def test_training_board_unaffected(self):
         response = self.client.get("/leaderboard/")
         self.assertEqual(response.context["board"], "training")
+
+
+# ---------------------------------------------------------------------------
+# 7. Settings page and navigation
+# ---------------------------------------------------------------------------
+
+
+@override_settings(STORAGES=PLAIN_STATIC, PASSWORD_HASHERS=FAST_HASHERS)
+class SettingsAndNavTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("navuser", password="unused-pw-123")
+        self.athlete = Athlete.objects.create(user=self.user, full_name="Nav User", slug="nav")
+        self.client.force_login(self.user)
+
+    def test_settings_needs_login(self):
+        self.client.logout()
+        self.assertRedirects(self.client.get("/settings/"), "/login/?next=/settings/")
+
+    def test_settings_has_log_out_and_leaderboard_switch(self):
+        page = self.client.get("/settings/").content.decode()
+        self.assertIn('action="/logout/"', page)
+        self.assertIn('action="/leaderboard/toggle/"', page)
+
+    def test_gear_in_header_and_rankings_tab_in_nav(self):
+        page = self.client.get("/dashboard/").content.decode()
+        self.assertIn('href="/settings/"', page)
+        self.assertIn('href="/leaderboard/rankings/"', page)
+        self.assertNotIn('action="/logout/"', page)  # log out lives in Settings now
+
+    def test_switch_from_settings_returns_to_settings(self):
+        response = self.client.post("/leaderboard/toggle/", {"on": "1", "next": "settings"})
+        self.assertRedirects(response, "/settings/")
+        self.athlete.refresh_from_db()
+        self.assertTrue(self.athlete.on_leaderboard)

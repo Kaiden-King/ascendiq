@@ -721,3 +721,14 @@ a.btn-primary { display: flex; align-items: center; justify-content: center; }
 .board .board__who { display: flex; flex-direction: column; }
 .board__stars { font-size: 13px; letter-spacing: 1px; color: var(--orange-lt); }
 .board .board__stat span { font-size: 12px; }
+
+/* ===================== settings gear + settings page ===================== */
+.hdr__gear { flex-shrink: 0; color: var(--body); }
+.hdr__gear[aria-current="page"] { color: var(--orange-lt); border-color: var(--orange-line); }
+.who { position: relative; }
+.who__gear { position: absolute; top: 12px; right: 12px; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 72px; }
+.set-row > span:first-child { display: flex; flex-direction: column; }
+.set-row__title { margin: 0 0 4px; font-size: 17px; font-weight: 700; color: var(--text); }
+.set-row .link-more { font-size: 28px; }
+.card form + form, .card p + form { margin-top: 12px; }

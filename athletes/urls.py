@@ -13,6 +13,7 @@ urlpatterns = [
     path("leaderboard/rankings/", views.rankings_board, name="rankings_board"),
     path("leaderboard/toggle/", views.leaderboard_toggle, name="leaderboard_toggle"),
     path("profile/", views.profile, name="profile"),
+    path("settings/", views.settings_page, name="settings"),
     path("profile/edit/", views.profile_edit, name="profile_edit"),
     path("profile/rankings/add/", views.ranking_add, name="ranking_add"),
     path("profile/rankings/<int:ranking_id>/delete/", views.ranking_delete, name="ranking_delete"),

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Settings · AscendIQ{% endblock %}
+
+{% block header %}
+  {% if athlete %}{{ block.super }}{% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="sect">
+    <div class="sect__hd"><h2>Settings</h2></div>
+
+    {% if athlete %}
+      {# ============ PROFILE ============ #}
+      <a class="card card--pad set-row" href="{% url 'profile_edit' %}">
+        <span>
+          <span class="set-row__title">Edit profile</span>
+          <span class="today__sub">Name, position, class year, school, measurements</span>
+        </span>
+        <span class="link-more" aria-hidden="true">›</span>
+      </a>
+
+      {# ============ LEADERBOARDS ============ #}
+      <form class="card card--pad" method="post" action="{% url 'leaderboard_toggle' %}">
+        {% csrf_token %}
+        <p class="set-row__title">Leaderboards</p>
+        {% if athlete.on_leaderboard %}
+          <input type="hidden" name="on" value="0">
+          <input type="hidden" name="next" value="settings">
+          <p class="today__sub">On. Athletes in your grade see you as <b>{{ my_short_name }}</b> on the Training and Rankings boards.</p>
+          <button type="submit" class="btn-ghost">Hide me from leaderboards</button>
+        {% else %}
+          <input type="hidden" name="on" value="1">
+          <input type="hidden" name="next" value="settings">
+          <p class="today__sub">Off. Turn on to appear on your grade's boards (8th–12th) as first name and last initial only.</p>
+          <button type="submit" class="btn-primary">Show me on leaderboards</button>
+        {% endif %}
+      </form>
+    {% endif %}
+
+    {# ============ ACCOUNT ============ #}
+    <div class="card card--pad">
+      <p class="set-row__title">Account</p>
+      <p class="today__sub">Logged in as <b>{{ user.username }}</b></p>
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-ghost">Log out</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}

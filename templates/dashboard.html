@@ -51,9 +51,11 @@
     </section>
   {% endif %}
 
-  {# Moves to Settings once that page exists. #}
-  <form method="post" action="{% url 'logout' %}">
-    {% csrf_token %}
-    <button type="submit" class="btn-ghost">Log out</button>
-  </form>
+  {% if not athlete %}
+    {# Admin logins have no header gear, so they keep Log out here. Athletes log out in Settings. #}
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn-ghost">Log out</button>
+    </form>
+  {% endif %}
 {% endblock %}

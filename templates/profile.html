@@ -8,6 +8,8 @@
 {% block content %}
   {# ============ WHO ============ #}
   <section class="who">
+    {# This page skips the shared header, so its gear lives here. #}
+    <div class="who__gear">{% include "partials/settings_gear.html" %}</div>
     <span class="who__avatar" aria-hidden="true">{{ athlete.initials }}</span>
     <h1 class="who__name">{{ athlete.full_name }}</h1>
     <p class="who__meta">

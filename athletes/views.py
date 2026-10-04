@@ -544,6 +544,8 @@ def leaderboard_toggle(request):
         return redirect("leaderboard")
     if next_page == "rankings":
         return redirect("rankings_board")
+    if next_page == "settings":
+        return redirect("settings")
     return redirect("profile")
 
 
@@ -645,7 +647,7 @@ def rankings_board(request):
 
     return render(request, "leaderboard_rankings.html", {
         "athlete": athlete,
-        "active_tab": "record",
+        "active_tab": "rankings",
         "board": "rankings",
         "grades": LEADERBOARD_GRADES,
         "grade": grade,
@@ -659,4 +661,16 @@ def rankings_board(request):
         "my_grade": my_grade,
         "my_short_name": short_name(athlete.full_name),
         "stale_days": STALE_AFTER_DAYS,
+    })
+
+
+@login_required
+def settings_page(request):
+    """Account settings, opened from the gear in the top right."""
+    # Admin logins have no athlete; they still get Log out.
+    athlete = Athlete.objects.filter(user=request.user).first()
+    return render(request, "settings.html", {
+        "athlete": athlete,
+        "active_tab": "settings",
+        "my_short_name": short_name(athlete.full_name) if athlete else "",
     })
