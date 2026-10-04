@@ -1,4 +1,4 @@
-"""Create 3 test athletes with recent workouts, for building and demos.
+"""Create 7 fake test athletes with measurements and recent workouts, for demos.
 
     python manage.py seed_test_users            create any that are missing
     python manage.py seed_test_users --refresh  also rebuild their workouts around today
@@ -6,8 +6,8 @@
 Every test user gets an @example.com email. That address is how
 remove_test_users finds them again, so real accounts are never touched.
 The password is typed in when the command runs — it's never stored in code.
-All three are Class of 2027 and on the leaderboard, so with one real
-12th grader the 12th grade board reaches the 4 it needs to open.
+Three are Class of 2027 (12th) and four Class of 2028 (11th), all on the
+leaderboard: the 11th grade board opens on its own; 12th opens with one real athlete.
 """
 
 import datetime
@@ -24,27 +24,54 @@ from athletes.models import Athlete, Workout, WorkoutSet
 
 TEST_EMAIL_DOMAIN = "@example.com"
 
-# workouts: (days ago, made, attempted) — invented numbers, test data only.
-# Different records so the boards actually rank them.
+# All invented, test data only. Measurements in inches / lb.
+# workouts: (days ago, made, attempted). Different records so the boards rank them.
+# Four in each of two grades, counting the real athlete in 12th, so both boards open.
+TEST_SCHOOL = "Test High School"
 TEST_ATHLETES = [
+    # --- Class of 2027 (12th grade) ---
     {
-        "username": "test_guard", "full_name": "Guard Tester", "position": "Point guard",
+        "username": "test_guard", "full_name": "Guard Tester", "position": "Point guard", "grad_year": 2027,
+        "height_in": 73, "weight_lb": 172, "wingspan_in": 76,
         "workouts": [(0, 41, 50), (1, 38, 50), (2, 36, 50), (3, 40, 50), (4, 35, 50)],  # 5-day streak
     },
     {
-        "username": "test_wing", "full_name": "Wing Tester", "position": "Small forward",
+        "username": "test_wing", "full_name": "Wing Tester", "position": "Small forward", "grad_year": 2027,
+        "height_in": 78, "weight_lb": 195, "wingspan_in": 82,
         "workouts": [(1, 44, 50), (2, 43, 50), (6, 42, 50)],  # best shooter
     },
     {
-        "username": "test_big", "full_name": "Big Tester", "position": "Center",
+        "username": "test_big", "full_name": "Big Tester", "position": "Center", "grad_year": 2027,
+        "height_in": 82, "weight_lb": 235, "wingspan_in": 86,
         "workouts": [(3, 22, 40), (9, 25, 40)],  # fewer sessions
     },
+    # --- Class of 2028 (11th grade) ---
+    {
+        "username": "test_swing", "full_name": "Swing Tester", "position": "Shooting guard", "grad_year": 2028,
+        "height_in": 75, "weight_lb": 180, "wingspan_in": 79,
+        "workouts": [(0, 39, 50), (1, 41, 50), (2, 37, 50), (5, 40, 50)],
+    },
+    {
+        "username": "test_combo", "full_name": "Combo Tester", "position": "Point guard", "grad_year": 2028,
+        "height_in": 71, "weight_lb": 165, "wingspan_in": 73,
+        "workouts": [(0, 33, 50), (1, 35, 50), (2, 31, 50), (3, 36, 50), (4, 34, 50), (5, 30, 50)],  # 6-day streak
+    },
+    {
+        "username": "test_stretch", "full_name": "Stretch Tester", "position": "Power forward", "grad_year": 2028,
+        "height_in": 80, "weight_lb": 210, "wingspan_in": 83,
+        "workouts": [(2, 46, 60), (4, 44, 60)],  # few sessions, sharp shooter
+    },
+    {
+        "username": "test_post", "full_name": "Post Tester", "position": "Center", "grad_year": 2028,
+        "height_in": 81, "weight_lb": 240, "wingspan_in": 84,
+        "workouts": [(1, 28, 45), (3, 26, 45), (8, 30, 45)],
+    },
 ]
-TEST_GRAD_YEAR = 2027
+PROFILE_FIELDS = ["full_name", "position", "grad_year", "height_in", "weight_lb", "wingspan_in"]
 
 
 class Command(BaseCommand):
-    help = "Create 3 test athletes (@example.com) on the 12th grade leaderboard."
+    help = "Create 7 fake test athletes (@example.com) across the 11th and 12th grade boards."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -82,21 +109,12 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.WARNING(f"{info['username']} isn't a test account, skipped"))
                     continue
 
+                profile = {field: info[field] for field in PROFILE_FIELDS}
+                profile.update(school=TEST_SCHOOL, on_leaderboard=True)
                 athlete, _ = Athlete.objects.update_or_create(
                     user=user,
-                    defaults={
-                        "full_name": info["full_name"],
-                        "position": info["position"],
-                        "grad_year": TEST_GRAD_YEAR,
-                        "on_leaderboard": True,
-                    },
-                    create_defaults={
-                        "full_name": info["full_name"],
-                        "slug": info["username"].replace("_", "-"),
-                        "position": info["position"],
-                        "grad_year": TEST_GRAD_YEAR,
-                        "on_leaderboard": True,
-                    },
+                    defaults=profile,
+                    create_defaults={**profile, "slug": info["username"].replace("_", "-")},
                 )
 
                 if created or options["refresh"]:
