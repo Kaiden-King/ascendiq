@@ -10,6 +10,7 @@ urlpatterns = [
     path("dashboard/", views.dashboard, name="dashboard"),
     path("history/", views.history, name="history"),
     path("leaderboard/", views.leaderboard, name="leaderboard"),
+    path("leaderboard/rankings/", views.rankings_board, name="rankings_board"),
     path("leaderboard/toggle/", views.leaderboard_toggle, name="leaderboard_toggle"),
     path("profile/", views.profile, name="profile"),
     path("profile/edit/", views.profile_edit, name="profile_edit"),

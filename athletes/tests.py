@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from .models import Athlete, Highlight, Ranking, Workout, WorkoutSet
 from .stats import (
-    feet_and_inches, grad_year_for, grade_for, is_stale, minutes_between, pct_change, shooting_pct,
+    STALE_AFTER_DAYS, feet_and_inches, grad_year_for, grade_for, is_stale, minutes_between, pct_change, shooting_pct,
     shooting_totals, short_name, streak, weekly_series,
 )
 
@@ -432,3 +432,67 @@ class RankingTests(TestCase):
                                         url="https://espn.com/x", checked_on=timezone.localdate())
         self.assertEqual(self.client.post(f"/profile/rankings/{theirs.id}/delete/").status_code, 404)
         self.assertTrue(Ranking.objects.filter(id=theirs.id).exists())
+
+
+# ---------------------------------------------------------------------------
+# 6. Recruiting rankings board
+# ---------------------------------------------------------------------------
+
+
+@override_settings(STORAGES=PLAIN_STATIC, PASSWORD_HASHERS=FAST_HASHERS)
+class RankingsBoardTests(TestCase):
+    def setUp(self):
+        self.today = timezone.localdate()
+        self.grade12 = grad_year_for(12, self.today)
+        self.me = self.make("me", "Kaiden King", national=45, stars=4)
+        self.make("a", "Alpha Surname", national=12, stars=5)
+        self.make("b", "Bravo Surname", national=None, stars=3, position=9)
+        self.make("c", "Charlie Surname", national=200, stars=3)
+        self.client.force_login(self.me.user)
+
+    def make(self, username, name, national, stars, position=None, outlet="247sports",
+             on=True, grad_year=None, checked_days_ago=0):
+        user = get_user_model().objects.create_user(username, password="unused-pw-123")
+        athlete = Athlete.objects.create(user=user, full_name=name, slug=username,
+                                         grad_year=grad_year or self.grade12, on_leaderboard=on)
+        Ranking.objects.create(athlete=athlete, outlet=outlet, stars=stars, national_rank=national,
+                               position_rank=position, url="https://247sports.com/x",
+                               checked_on=self.today - datetime.timedelta(days=checked_days_ago))
+        return athlete
+
+    def board(self, **params):
+        response = self.client.get("/leaderboard/rankings/", params)
+        self.assertEqual(response.status_code, 200)
+        return response.context
+
+    def test_ordered_by_national_rank_then_stars_only(self):
+        rows = self.board(grade=12, outlet="247sports")["rows"]
+        self.assertEqual([r["name"] for r in rows], ["Alpha S.", "Kaiden K.", "Charlie S.", "Bravo S."])
+
+    def test_no_full_names_or_links_on_the_board(self):
+        page = self.client.get("/leaderboard/rankings/", {"grade": 12}).content.decode()
+        self.assertNotIn("Surname", page)
+        self.assertNotIn("247sports.com/x", page)
+
+    def test_outlets_are_separate_boards(self):
+        self.assertFalse(self.board(grade=12, outlet="espn")["is_open"])
+
+    def test_stale_rankings_left_off(self):
+        Ranking.objects.filter(athlete__user__username="c").update(
+            checked_on=self.today - datetime.timedelta(days=STALE_AFTER_DAYS + 1))
+        self.assertFalse(self.board(grade=12)["is_open"])  # down to 3
+
+    def test_opted_out_left_off(self):
+        Athlete.objects.filter(user__username="a").update(on_leaderboard=False)
+        self.assertFalse(self.board(grade=12)["is_open"])
+
+    def test_below_8th_grade_never_shown(self):
+        seventh = grad_year_for(7, self.today)
+        for i in range(4):
+            self.make(f"kid{i}", f"Kid{i} Young", national=5 + i, stars=5, grad_year=seventh)
+        names = [r["name"] for r in self.board(grade=7)["rows"]]  # falls back to 12th
+        self.assertFalse(any(n.startswith("Kid") for n in names))
+
+    def test_training_board_unaffected(self):
+        response = self.client.get("/leaderboard/")
+        self.assertEqual(response.context["board"], "training")

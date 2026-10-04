@@ -15,7 +15,7 @@ from django.views.decorators.http import require_POST
 from .forms import POSITIONS, HighlightForm, ProfileForm, RankingForm, SignupForm
 from .models import Athlete, Highlight, Ranking, Workout, WorkoutSet
 from .stats import (
-    LEADERBOARD_GRADES, grad_year_for, grade_for, is_stale, minutes_between, pct_change,
+    LEADERBOARD_GRADES, STALE_AFTER_DAYS, grad_year_for, grade_for, is_stale, minutes_between, pct_change,
     shooting_pct, shooting_totals, short_name, streak, week_start,
 )
 from .workout_templates import GUARD_60, GUARD_60_FOCUS, create_todays_workout, todays_workout
@@ -517,6 +517,7 @@ def leaderboard(request):
         "active_tab": "record",
         "grades": LEADERBOARD_GRADES,
         "grade": grade,
+        "board": "training",
         "stats": LEADERBOARD_STATS,
         "stat": stat,
         "stat_note": LEADERBOARD_STATS[stat][1],
@@ -538,8 +539,11 @@ def leaderboard_toggle(request):
     athlete.on_leaderboard = request.POST.get("on") == "1"
     athlete.save(update_fields=["on_leaderboard"])
     # Go back to whichever page the switch was on.
-    if request.POST.get("next") == "leaderboard":
+    next_page = request.POST.get("next")
+    if next_page == "leaderboard":
         return redirect("leaderboard")
+    if next_page == "rankings":
+        return redirect("rankings_board")
     return redirect("profile")
 
 
@@ -572,3 +576,87 @@ def ranking_delete(request, ranking_id):
     ranking = get_object_or_404(Ranking, id=ranking_id, athlete__user=request.user)
     ranking.delete()
     return redirect("profile")
+
+
+# --- Recruiting rankings board ------------------------------------------------
+# Ranks AscendIQ athletes by the official outlet rankings they've each added
+# (and linked to the source). Never copies an outlet's list.
+
+def rankings_rows(grade, outlet, today):
+    """One row per athlete with a current ranking from `outlet`, best first.
+
+    Same rules as the training board: opted in, 8th grade and up, short names.
+    Rankings not re-checked within STALE_AFTER_DAYS are left off.
+    No links here — an outlet's page shows the athlete's full name.
+    """
+    rankings = (
+        Ranking.objects.filter(
+            outlet=outlet,
+            athlete__on_leaderboard=True,
+            athlete__grad_year=grad_year_for(grade, today),
+            checked_on__gte=today - datetime.timedelta(days=STALE_AFTER_DAYS),
+        )
+        .select_related("athlete")
+        .order_by("athlete_id", "-checked_on")
+    )
+    latest = {}
+    for ranking in rankings:
+        latest.setdefault(ranking.athlete_id, ranking)  # first one is the most recent
+
+    rows = [
+        {
+            "athlete_id": r.athlete_id,
+            "name": short_name(r.athlete.full_name),
+            "initials": r.athlete.initials,
+            "stars": r.stars_display,
+            "national_rank": r.national_rank,
+            "position_rank": r.position_rank,
+            "position": r.athlete.position,
+        }
+        for r in latest.values()
+    ]
+    # Numbered national ranks first (lowest number wins), then stars-only, most stars first.
+    rows.sort(key=lambda row: (row["national_rank"] is None, row["national_rank"] or 0,
+                               -len(row["stars"]), row["name"]))
+    for position, row in enumerate(rows, start=1):
+        row["rank"] = position
+    return rows
+
+
+@login_required
+def rankings_board(request):
+    athlete = get_object_or_404(Athlete, user=request.user)
+    today = timezone.localdate()
+    my_grade = grade_for(athlete.grad_year, today)
+
+    try:
+        grade = int(request.GET.get("grade", my_grade or 12))
+    except ValueError:
+        grade = 12
+    if grade not in LEADERBOARD_GRADES:
+        grade = 12
+    outlets = dict(Ranking.OUTLETS)
+    outlet = request.GET.get("outlet", "247sports")
+    if outlet not in outlets:
+        outlet = "247sports"
+
+    rows = rankings_rows(grade, outlet, today)
+    is_open = len(rows) >= LEADERBOARD_MIN_ATHLETES
+
+    return render(request, "leaderboard_rankings.html", {
+        "athlete": athlete,
+        "active_tab": "record",
+        "board": "rankings",
+        "grades": LEADERBOARD_GRADES,
+        "grade": grade,
+        "outlets": Ranking.OUTLETS,
+        "outlet": outlet,
+        "outlet_name": outlets[outlet],
+        "rows": rows if is_open else [],
+        "is_open": is_open,
+        "count": len(rows),
+        "needed": LEADERBOARD_MIN_ATHLETES - len(rows),
+        "my_grade": my_grade,
+        "my_short_name": short_name(athlete.full_name),
+        "stale_days": STALE_AFTER_DAYS,
+    })

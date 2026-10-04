@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Recruiting rankings · AscendIQ{% endblock %}
+
+{% block content %}
+  <div class="sect">
+    {% include "partials/board_switch.html" %}
+
+    <div class="sect__hd">
+      <h2>Recruiting rankings</h2>
+      <span class="sect__note">8th–12th grade</span>
+    </div>
+
+    <nav class="chips" aria-label="Grade">
+      {% for g in grades %}
+        <a class="chip" href="?grade={{ g }}&outlet={{ outlet }}" {% if g == grade %}aria-current="page"{% endif %}>{{ g }}th</a>
+      {% endfor %}
+    </nav>
+
+    {# One board per outlet: their ranking systems differ, so they're never mixed. #}
+    <nav class="chips chips--wrap" aria-label="Outlet">
+      {% for key, name in outlets %}
+        <a class="chip" href="?grade={{ grade }}&outlet={{ key }}" {% if key == outlet %}aria-current="page"{% endif %}>{{ name }}</a>
+      {% endfor %}
+    </nav>
+    <p class="lb-stat-note">AscendIQ athletes, ordered by their {{ outlet_name }} national rank. Each athlete links the source on their profile.</p>
+  </div>
+
+  {% if not athlete.on_leaderboard %}
+    <form class="card card--pad lb-optin" method="post" action="{% url 'leaderboard_toggle' %}">
+      {% csrf_token %}
+      <input type="hidden" name="on" value="1">
+      <input type="hidden" name="next" value="rankings">
+      <p class="today__sub">You're not on the leaderboards. Others in your grade would see you as <b>{{ my_short_name }}</b>, with your rankings. No school, no photo, no links.</p>
+      {% if my_grade is None %}
+        <p class="today__sub">Add your class year in <a class="link-more" href="{% url 'profile_edit' %}">Edit profile</a> first.</p>
+      {% elif my_grade < 8 %}
+        <p class="today__sub">Leaderboards start in 8th grade.</p>
+      {% else %}
+        <button type="submit" class="btn-primary">Show me on leaderboards</button>
+      {% endif %}
+    </form>
+  {% endif %}
+
+  {% if is_open %}
+    <ol class="board card">
+      {% for row in rows %}
+        <li class="board__row{% if row.athlete_id == athlete.id %} board__row--you{% endif %}">
+          <span class="board__rank">{{ row.rank }}</span>
+          <span class="board__av" aria-hidden="true">{{ row.initials }}</span>
+          <span class="board__who">
+            <span class="board__nm">{{ row.name }}{% if row.athlete_id == athlete.id %} · You{% endif %}</span>
+            {% if row.stars %}<span class="board__stars" aria-label="{{ row.stars|length }} stars">{{ row.stars }}</span>{% endif %}
+          </span>
+          <span class="board__stat">
+            {% if row.national_rank %}<b>#{{ row.national_rank }}</b><span>national</span>
+            {% elif row.position_rank %}<b>#{{ row.position_rank }}</b><span>{{ row.position|default:"position" }}</span>
+            {% else %}<b>{{ row.stars|length }}★</b><span>unranked</span>{% endif %}
+          </span>
+        </li>
+      {% endfor %}
+    </ol>
+    <p class="today__sub">Only rankings checked in the last {{ stale_days }} days count.</p>
+  {% else %}
+    <div class="card empty">
+      <p><b>{{ grade }}th grade · {{ outlet_name }} opens at 4 athletes.</b></p>
+      <p>{{ count }} so far with a current {{ outlet_name }} ranking. Add yours on your <a class="link-more" href="{% url 'profile' %}">profile</a>.</p>
+    </div>
+  {% endif %}
+{% endblock %}

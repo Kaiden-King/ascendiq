@@ -705,3 +705,19 @@ a.btn-primary { display: flex; align-items: center; justify-content: center; }
 .rk__actions { display: flex; align-items: center; justify-content: space-between; }
 .rk__view { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; }
 .card .field select { appearance: none; }
+
+/* ===================== two leaderboards: switch + rankings rows ===================== */
+.board-switch {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px;
+  background: var(--well); border-radius: var(--r-md);
+}
+.board-switch a {
+  display: flex; align-items: center; justify-content: center; min-height: 44px;
+  border-radius: var(--r-sm); font-size: 15px; font-weight: 700; color: var(--muted);
+}
+.board-switch a[aria-current="page"] { background: var(--card); color: var(--text); border: 1px solid var(--orange-line); }
+.chips--wrap { flex-wrap: wrap; overflow: visible; }
+.chips--wrap .chip { flex: 1 0 auto; }
+.board .board__who { display: flex; flex-direction: column; }
+.board__stars { font-size: 13px; letter-spacing: 1px; color: var(--orange-lt); }
+.board .board__stat span { font-size: 12px; }

@@ -1,0 +1,5 @@
+{# The two leaderboards. Shown at the top of both. #}
+<nav class="board-switch" aria-label="Leaderboard">
+  <a href="{% url 'leaderboard' %}?grade={{ grade }}" {% if board == "training" %}aria-current="page"{% endif %}>Training</a>
+  <a href="{% url 'rankings_board' %}?grade={{ grade }}" {% if board == "rankings" %}aria-current="page"{% endif %}>Rankings</a>
+</nav>
