@@ -123,3 +123,11 @@ def short_name(full_name):
     if len(parts) == 1:
         return parts[0]
     return f"{parts[0]} {parts[-1][0]}."
+
+
+STALE_AFTER_DAYS = 90
+
+
+def is_stale(checked_on, today, days=STALE_AFTER_DAYS):
+    """True when a sourced fact hasn't been re-checked in `days` days."""
+    return (today - checked_on).days > days

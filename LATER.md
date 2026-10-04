@@ -3,6 +3,23 @@
 Everything cut, so it stays out of the six weeks without being forgotten.
 Add to this instead of building. Nothing here is a bad idea.
 
+## Week 4 — Recruiting Hub
+- "Where to find rankings" page: links to each outlet's official basketball
+  class rankings (ESPN, 247Sports, On3, Rivals, MaxPreps, USA Today) and a line
+  on how each ranks players. Links only — never copy their lists (their content,
+  often paywalled, and full of other people's kids). Verify each outlet still
+  publishes individual player rankings before listing it. Decided 2026-10-04.
+
+## Team leaderboards — gamified (Kaiden's request, 2026-10-04)
+- High school teams: a team join code from the coach or captain; each team
+  gets its own board, seen only by its members.
+- Gamified: points for finished workouts, streaks and shots logged; weekly
+  team challenges; badges (first 500 shots, 7-day streak, most improved).
+- Keep the grade boards' safety rules: opt-in, first name + last initial,
+  hidden under 4 members, 8th grade and up.
+- Decide first: who can create a team (coach account? see "Coach accounts"),
+  and whether adults can see a team board at all (no adult–minor channel).
+
 ## Next — after the November deadlines
 - Game stats and season line (PPG, rebounds, box scores) — unlocks My Season,
   Recent Games and most achievements

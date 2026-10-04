@@ -2,8 +2,9 @@ from urllib.parse import urlsplit
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
+from django.utils import timezone
 
-from .models import Athlete, Highlight
+from .models import Athlete, Highlight, Ranking
 
 
 class SignupForm(UserCreationForm):
@@ -119,3 +120,74 @@ class HighlightForm(forms.ModelForm):
         if parts.scheme != "https" or (parts.hostname or "").lower() not in HIGHLIGHT_HOSTS:
             raise forms.ValidationError("Use an https link from YouTube, Hudl or Vimeo.")
         return url
+
+
+# Each outlet's own website. A ranking's link must be on the outlet you picked,
+# so "247Sports #45" can only point at 247sports.com — a coach lands on the source.
+OUTLET_DOMAINS = {
+    "espn": "espn.com",
+    "247sports": "247sports.com",
+    "on3": "on3.com",
+    "rivals": "rivals.com",
+    "maxpreps": "maxpreps.com",
+    "usatoday": "usatoday.com",
+}
+
+
+def on_domain(host, domain):
+    """'www.247sports.com' is on '247sports.com'; 'fake247sports.com' is not."""
+    host = (host or "").lower()
+    return host == domain or host.endswith("." + domain)
+
+
+class RankingForm(forms.ModelForm):
+    class Meta:
+        model = Ranking
+        fields = ["outlet", "stars", "national_rank", "position_rank", "state_rank", "checked_on", "url"]
+        labels = {
+            "outlet": "Outlet",
+            "stars": "Stars (1–5)",
+            "national_rank": "National rank",
+            "position_rank": "Position rank",
+            "state_rank": "State rank",
+            "checked_on": "Date you checked it",
+            "url": "Link to your ranking",
+        }
+        widgets = {
+            "stars": number_widget("4"),
+            "national_rank": number_widget("45"),
+            "position_rank": number_widget("8"),
+            "state_rank": number_widget("3"),
+            "checked_on": forms.DateInput(attrs={"type": "date"}),
+            "url": forms.URLInput(attrs={"placeholder": "https://247sports.com/…", "inputmode": "url"}),
+        }
+
+    def clean_stars(self):
+        stars = self.cleaned_data["stars"]
+        if stars is not None and not 1 <= stars <= 5:
+            raise forms.ValidationError("Stars are 1 to 5.")
+        return stars
+
+    def clean_checked_on(self):
+        checked_on = self.cleaned_data["checked_on"]
+        if checked_on > timezone.localdate():
+            raise forms.ValidationError("That date is in the future.")
+        return checked_on
+
+    def clean(self):
+        cleaned = super().clean()
+        ranks = ["stars", "national_rank", "position_rank", "state_rank"]
+        if not any(cleaned.get(field) for field in ranks):
+            raise forms.ValidationError("Add at least one: stars, or a national, position or state rank.")
+        for field in ["national_rank", "position_rank", "state_rank"]:
+            value = cleaned.get(field)
+            if value is not None and not 1 <= value <= 3000:
+                self.add_error(field, "Ranks run from 1 to 3000.")
+
+        outlet, url = cleaned.get("outlet"), cleaned.get("url")
+        if outlet and url:
+            parts = urlsplit(url)
+            domain = OUTLET_DOMAINS[outlet]
+            if parts.scheme != "https" or not on_domain(parts.hostname, domain):
+                self.add_error("url", f"Use an https link on {domain}, the outlet you picked.")
+        return cleaned

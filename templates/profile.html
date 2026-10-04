@@ -42,6 +42,57 @@
     {% endif %}
   </section>
 
+  {# ============ RANKINGS (from outlets, each linked to its source) ============ #}
+  <section class="sect">
+    <div class="sect__hd">
+      <h2>Rankings</h2>
+      <span class="sect__note">Linked to the source</span>
+    </div>
+
+    {% if rankings %}
+      <ul class="rks">
+        {% for r in rankings %}
+          <li class="rk card">
+            <div class="rk__top">
+              <span class="rk__outlet">{{ r.get_outlet_display }}</span>
+              {% if r.stars %}<span class="rk__stars" aria-label="{{ r.stars }} stars">{{ r.stars_display }}</span>{% endif %}
+            </div>
+            <p class="rk__ranks">
+              {% if r.national_rank %}<span><b>#{{ r.national_rank }}</b> national</span>{% endif %}
+              {% if r.position_rank %}<span><b>#{{ r.position_rank }}</b> {{ athlete.position|default:"position" }}</span>{% endif %}
+              {% if r.state_rank %}<span><b>#{{ r.state_rank }}</b> in state</span>{% endif %}
+            </p>
+            <p class="rk__checked{% if r.stale %} rk__checked--stale{% endif %}">
+              {% if r.stale %}Checked over 3 months ago ({{ r.checked_on|date:"j M Y" }}). Re-check it.{% else %}Checked {{ r.checked_on|date:"j M Y" }}{% endif %}
+            </p>
+            <div class="rk__actions">
+              {# rel="noopener noreferrer": the outlet's site can't reach back into this page #}
+              <a class="link-more rk__view" href="{{ r.url }}" target="_blank" rel="noopener noreferrer">View on {{ r.get_outlet_display }} ↗</a>
+              <form method="post" action="{% url 'ranking_delete' r.id %}"
+                    onsubmit="return confirm('Remove your {{ r.get_outlet_display|escapejs }} ranking?');">
+                {% csrf_token %}
+                <button type="submit" class="hl__remove" aria-label="Remove {{ r.get_outlet_display }} ranking">✕</button>
+              </form>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="today__sub">No rankings yet. Add any ranking an outlet has given you, with the link to it.</p>
+    {% endif %}
+
+    {% if can_add_ranking %}
+      <details class="card card--pad hl-add" {% if open_ranking_form %}open{% endif %}>
+        <summary class="link-more">+ Add a ranking</summary>
+        <form method="post" action="{% url 'ranking_add' %}" novalidate>
+          {% csrf_token %}
+          {% include "registration/form_fields.html" with form=ranking_form %}
+          <button type="submit" class="btn-primary">Save ranking</button>
+        </form>
+      </details>
+    {% endif %}
+  </section>
+
   {# ============ TRAINING ============ #}
   <section class="sect">
     <div class="sect__hd"><h2>Training</h2></div>

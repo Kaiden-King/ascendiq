@@ -117,3 +117,41 @@ class Highlight(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Ranking(models.Model):
+    """A ranking an outlet has given this athlete, with the link to prove it.
+
+    Entered by the athlete, never copied from the outlet's site: the link
+    is the source, and checked_on is when they last confirmed it.
+    """
+
+    OUTLETS = [
+        ("espn", "ESPN"),
+        ("247sports", "247Sports"),
+        ("on3", "On3"),
+        ("rivals", "Rivals"),
+        ("maxpreps", "MaxPreps"),
+        ("usatoday", "USA Today"),
+    ]
+
+    athlete = models.ForeignKey(Athlete, on_delete=models.CASCADE)
+    outlet = models.CharField(max_length=20, choices=OUTLETS)
+    stars = models.PositiveSmallIntegerField(null=True, blank=True)
+    national_rank = models.PositiveIntegerField(null=True, blank=True)
+    position_rank = models.PositiveIntegerField(null=True, blank=True)
+    state_rank = models.PositiveIntegerField(null=True, blank=True)
+    url = models.URLField(max_length=300)
+    checked_on = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["outlet", "-checked_on"]
+
+    def __str__(self):
+        return f"{self.get_outlet_display()} · {self.athlete}"
+
+    @property
+    def stars_display(self):
+        """4 -> '★★★★'"""
+        return "★" * (self.stars or 0)

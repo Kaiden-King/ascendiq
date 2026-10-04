@@ -691,3 +691,17 @@ a.btn-primary { display: flex; align-items: center; justify-content: center; }
 /* leaderboard chips: fill the row evenly instead of scrolling off the edge */
 .chips .chip { flex: 1; justify-content: center; padding: 0 8px; }
 .lb-stat-note { margin: 0; font-size: 14px; color: var(--muted); }
+
+/* ===================== rankings from outlets ===================== */
+.rks { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.rk { padding: 14px 16px 6px; }
+.rk__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rk__outlet { font-size: 17px; font-weight: 700; color: var(--text); }
+.rk__stars { font-size: 18px; letter-spacing: 2px; color: var(--orange-lt); }
+.rk__ranks { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; font-size: 16px; color: var(--body); }
+.rk__ranks b { color: var(--text); font-size: 18px; }
+.rk__checked { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
+.rk__checked--stale { color: var(--down); font-weight: 700; }
+.rk__actions { display: flex; align-items: center; justify-content: space-between; }
+.rk__view { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; }
+.card .field select { appearance: none; }

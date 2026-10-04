@@ -12,10 +12,10 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
-from .forms import POSITIONS, HighlightForm, ProfileForm, SignupForm
-from .models import Athlete, Highlight, Workout, WorkoutSet
+from .forms import POSITIONS, HighlightForm, ProfileForm, RankingForm, SignupForm
+from .models import Athlete, Highlight, Ranking, Workout, WorkoutSet
 from .stats import (
-    LEADERBOARD_GRADES, grad_year_for, grade_for, minutes_between, pct_change,
+    LEADERBOARD_GRADES, grad_year_for, grade_for, is_stale, minutes_between, pct_change,
     shooting_pct, shooting_totals, short_name, streak, week_start,
 )
 from .workout_templates import GUARD_60, GUARD_60_FOCUS, create_todays_workout, todays_workout
@@ -344,20 +344,27 @@ def workout_summary(request, workout_id):
 MAX_HIGHLIGHTS = 8
 
 
-def profile_context(athlete, highlight_form):
-    """Everything the profile page shows. Shared by the page and a failed highlight add."""
+def profile_context(athlete, highlight_form=None, ranking_form=None):
+    """Everything the profile page shows. Shared by the page and failed adds."""
     total, _ = history_numbers(athlete)
     finished = Workout.objects.filter(athlete=athlete, status="completed").aggregate(
         made=Sum("workoutset__made"), attempted=Sum("workoutset__attempted")
     )
     highlights = list(athlete.highlight_set.all())
+    today = timezone.localdate()
+    rankings = list(athlete.ranking_set.all())
+    for ranking in rankings:
+        ranking.stale = is_stale(ranking.checked_on, today)
     return {
+        "rankings": rankings,
+        "ranking_form": ranking_form or RankingForm(initial={"checked_on": today}),
+        "can_add_ranking": len(rankings) < MAX_RANKINGS,
         "athlete": athlete,
         "active_tab": "profile",
         "highlights": highlights,
         "total": total,
         "season_pct": shooting_pct(finished["made"] or 0, finished["attempted"]),
-        "highlight_form": highlight_form,
+        "highlight_form": highlight_form or HighlightForm(),
         "can_add_highlight": len(highlights) < MAX_HIGHLIGHTS,
         "my_short_name": short_name(athlete.full_name),
     }
@@ -367,7 +374,7 @@ def profile_context(athlete, highlight_form):
 def profile(request):
     """Your own profile. Only you can see this page — public profiles are separate."""
     athlete = get_object_or_404(Athlete, user=request.user)
-    return render(request, "profile.html", profile_context(athlete, HighlightForm()))
+    return render(request, "profile.html", profile_context(athlete))
 
 
 @login_required
@@ -401,7 +408,7 @@ def highlight_add(request):
         highlight.save()
         return redirect("profile")
     # Show the profile again, with the add form open and its error messages.
-    context = profile_context(athlete, form)
+    context = profile_context(athlete, highlight_form=form)
     context["open_highlight_form"] = True
     return render(request, "profile.html", context, status=400)
 
@@ -533,4 +540,35 @@ def leaderboard_toggle(request):
     # Go back to whichever page the switch was on.
     if request.POST.get("next") == "leaderboard":
         return redirect("leaderboard")
+    return redirect("profile")
+
+
+# --- Rankings from outlets (entered by the athlete, linked to the source) ----
+
+MAX_RANKINGS = 10
+
+
+@login_required
+@require_POST
+def ranking_add(request):
+    athlete = get_object_or_404(Athlete, user=request.user)
+    form = RankingForm(request.POST)
+    if athlete.ranking_set.count() >= MAX_RANKINGS:
+        form.add_error(None, f"You can have up to {MAX_RANKINGS} rankings. Remove one first.")
+    if form.is_valid():
+        ranking = form.save(commit=False)
+        ranking.athlete = athlete
+        ranking.save()
+        return redirect("profile")
+    context = profile_context(athlete, ranking_form=form)
+    context["open_ranking_form"] = True
+    return render(request, "profile.html", context, status=400)
+
+
+@login_required
+@require_POST
+def ranking_delete(request, ranking_id):
+    # Access check in the query: only your own rankings can be removed.
+    ranking = get_object_or_404(Ranking, id=ranking_id, athlete__user=request.user)
+    ranking.delete()
     return redirect("profile")

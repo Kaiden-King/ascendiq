@@ -11,9 +11,9 @@ from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
-from .models import Athlete, Highlight, Workout, WorkoutSet
+from .models import Athlete, Highlight, Ranking, Workout, WorkoutSet
 from .stats import (
-    feet_and_inches, grad_year_for, grade_for, minutes_between, pct_change, shooting_pct,
+    feet_and_inches, grad_year_for, grade_for, is_stale, minutes_between, pct_change, shooting_pct,
     shooting_totals, short_name, streak, weekly_series,
 )
 
@@ -107,9 +107,12 @@ PLAIN_STATIC = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+# Real password hashing is slow on purpose. Test passwords are throwaway, so tests
+# use a fast hasher (as Django's docs recommend). The live site is unaffected.
+FAST_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
 
-@override_settings(STORAGES=PLAIN_STATIC)
+@override_settings(STORAGES=PLAIN_STATIC, PASSWORD_HASHERS=FAST_HASHERS)
 class TwoAccountTests(TestCase):
     """Athlete B, logged in, tries every workout URL that belongs to athlete A.
 
@@ -189,7 +192,7 @@ class FeetAndInchesTests(SimpleTestCase):
         self.assertIsNone(feet_and_inches(None))
 
 
-@override_settings(STORAGES=PLAIN_STATIC)
+@override_settings(STORAGES=PLAIN_STATIC, PASSWORD_HASHERS=FAST_HASHERS)
 class ProfileTests(TestCase):
     def setUp(self):
         User = get_user_model()
@@ -286,7 +289,7 @@ class GradeAndStreakTests(SimpleTestCase):
         self.assertEqual(short_name("Cher"), "Cher")
 
 
-@override_settings(STORAGES=PLAIN_STATIC)
+@override_settings(STORAGES=PLAIN_STATIC, PASSWORD_HASHERS=FAST_HASHERS)
 class LeaderboardTests(TestCase):
     def setUp(self):
         self.today = timezone.localdate()
@@ -363,3 +366,69 @@ class LeaderboardTests(TestCase):
 
     def test_bad_query_values_dont_break_it(self):
         self.assertEqual(self.board(grade="abc", stat="nope")["stat"], "workouts")
+
+
+# ---------------------------------------------------------------------------
+# 5. Rankings from outlets
+# ---------------------------------------------------------------------------
+
+
+class StaleTests(SimpleTestCase):
+    def test_stale_after_90_days(self):
+        today = datetime.date(2026, 10, 4)
+        self.assertFalse(is_stale(today - datetime.timedelta(days=90), today))
+        self.assertTrue(is_stale(today - datetime.timedelta(days=91), today))
+
+
+@override_settings(STORAGES=PLAIN_STATIC, PASSWORD_HASHERS=FAST_HASHERS)
+class RankingTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user("ranked", password="unused-pw-123")
+        self.athlete = Athlete.objects.create(user=self.user, full_name="Ranked Player", slug="ranked")
+        other_user = User.objects.create_user("rival", password="unused-pw-123")
+        self.other = Athlete.objects.create(user=other_user, full_name="Other Player", slug="rival")
+        self.client.force_login(self.user)
+        self.today = timezone.localdate().isoformat()
+
+    def add(self, **fields):
+        data = {"outlet": "247sports", "stars": "4", "national_rank": "45", "position_rank": "",
+                "state_rank": "", "checked_on": self.today, "url": "https://247sports.com/player/x-123/"}
+        data.update(fields)
+        return self.client.post("/profile/rankings/add/", data)
+
+    def test_good_ranking_saved_and_shown(self):
+        self.assertEqual(self.add().status_code, 302)
+        page = self.client.get("/profile/").content.decode()
+        self.assertIn("★★★★", page)
+        self.assertIn("#45", page)
+        self.assertIn("View on 247Sports", page)
+
+    def test_link_must_be_on_the_chosen_outlet(self):
+        self.add(url="https://www.on3.com/db/x/")                 # On3 link for a 247Sports ranking
+        self.add(url="https://fake247sports.com/player/")          # lookalike domain
+        self.add(url="http://247sports.com/player/")               # not https
+        self.assertEqual(self.athlete.ranking_set.count(), 0)
+        self.add(url="https://www.247sports.com/player/x-123/")    # www. is fine
+        self.assertEqual(self.athlete.ranking_set.count(), 1)
+
+    def test_needs_at_least_one_rank(self):
+        self.add(stars="", national_rank="")
+        self.assertEqual(self.athlete.ranking_set.count(), 0)
+
+    def test_rejects_silly_values(self):
+        self.add(stars="6")
+        self.add(national_rank="0")
+        self.add(checked_on=(timezone.localdate() + datetime.timedelta(days=3)).isoformat())
+        self.assertEqual(self.athlete.ranking_set.count(), 0)
+
+    def test_old_ranking_shows_stale_notice(self):
+        old = (timezone.localdate() - datetime.timedelta(days=120)).isoformat()
+        self.add(checked_on=old)
+        self.assertIn("Checked over 3 months ago", self.client.get("/profile/").content.decode())
+
+    def test_cannot_delete_someone_elses_ranking(self):
+        theirs = Ranking.objects.create(athlete=self.other, outlet="espn", stars=5,
+                                        url="https://espn.com/x", checked_on=timezone.localdate())
+        self.assertEqual(self.client.post(f"/profile/rankings/{theirs.id}/delete/").status_code, 404)
+        self.assertTrue(Ranking.objects.filter(id=theirs.id).exists())
