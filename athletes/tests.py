@@ -619,3 +619,29 @@ class DailyAndChangeTests(SimpleTestCase):
     def test_nothing_to_compare(self):
         self.assertEqual(latest_change([None, 70]), (70, None))
         self.assertEqual(latest_change([None]), (None, None))
+
+
+# ---------------------------------------------------------------------------
+# 9. Deploy safety
+# ---------------------------------------------------------------------------
+
+
+class CollectStaticTests(SimpleTestCase):
+    """Runs the same static-file step Render runs on every deploy.
+
+    It once failed because Chart.js points at a source map that wasn't in the
+    repo — Render's build stopped and kept the old site. This catches that locally.
+    """
+
+    def test_collectstatic_with_production_storage(self):
+        import tempfile
+        from django.core.management import call_command
+
+        with tempfile.TemporaryDirectory() as folder, override_settings(
+            STATIC_ROOT=folder,
+            STORAGES={
+                "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+                "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+            },
+        ):
+            call_command("collectstatic", interactive=False, verbosity=0)
