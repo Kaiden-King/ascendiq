@@ -131,3 +131,45 @@ STALE_AFTER_DAYS = 90
 def is_stale(checked_on, today, days=STALE_AFTER_DAYS):
     """True when a sourced fact hasn't been re-checked in `days` days."""
     return (today - checked_on).days > days
+
+
+def daily_series(workouts, today, days=14):
+    """One entry per day for the last `days` days, oldest first, ending today.
+
+    Same input and rules as weekly_series: (date, made, attempted) per finished
+    workout; a day without shots has shooting_pct None (a gap, not 0%).
+    """
+    first_day = today - datetime.timedelta(days=days - 1)
+    series = [
+        {"day": first_day + datetime.timedelta(days=i), "workouts": 0, "made": 0, "attempted": 0}
+        for i in range(days)
+    ]
+    for day, made, attempted in workouts:
+        index = (day - first_day).days
+        if 0 <= index < days:
+            series[index]["workouts"] += 1
+            series[index]["made"] += made or 0
+            series[index]["attempted"] += attempted or 0
+
+    return [
+        {
+            "day": entry["day"],
+            "workouts": entry["workouts"],
+            "shooting_pct": shooting_pct(entry["made"], entry["attempted"]),
+        }
+        for entry in series
+    ]
+
+
+def latest_change(values):
+    """The newest value and how far it moved from the one before it.
+
+    Skips gaps (None), so a day off isn't treated as a drop to 0%.
+    Returns (latest, change) — change is None if there's nothing to compare.
+    """
+    present = [v for v in values if v is not None]
+    if not present:
+        return None, None
+    if len(present) == 1:
+        return present[-1], None
+    return present[-1], present[-1] - present[-2]

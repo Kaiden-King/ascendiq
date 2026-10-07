@@ -732,3 +732,26 @@ a.btn-primary { display: flex; align-items: center; justify-content: center; }
 .set-row__title { margin: 0 0 4px; font-size: 17px; font-weight: 700; color: var(--text); }
 .set-row .link-more { font-size: 28px; }
 .card form + form, .card p + form { margin-top: 12px; }
+
+/* ===================== dashboard charts ===================== */
+.chart-card { display: flex; flex-direction: column; gap: 10px; }
+.chart-card .eyebrow { margin: 0; }
+.chart-box { position: relative; height: 180px; }   /* Chart.js fills this box */
+.chart-note { margin: 0; font-size: 14px; color: var(--muted); }
+
+/* ===================== chart range switch + change badge ===================== */
+.range-switch {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px;
+  background: var(--well); border-radius: var(--r-md);
+}
+.range-switch button {
+  min-height: 44px; border-radius: var(--r-sm);
+  font-size: 15px; font-weight: 700; color: var(--muted);
+}
+.range-switch button[aria-pressed="true"] { background: var(--card); color: var(--text); border: 1px solid var(--orange-line); }
+.trend-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.trend-head__pct { margin: 0; font-size: 32px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.trend-head__pct span { font-size: 18px; color: var(--orange-lt); margin-left: 2px; }
+.trend-head__change { margin: 0; font-size: 14px; font-weight: 700; color: var(--muted); }
+.trend-head__change--up { color: var(--orange-lt); }
+.trend-head__change--down { color: var(--down); }

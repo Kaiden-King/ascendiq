@@ -77,6 +77,25 @@ TEST_ATHLETES = [
 ]
 PROFILE_FIELDS = ["full_name", "position", "grad_year", "height_in", "weight_lb", "wingspan_in"]
 
+HISTORY_WEEKS = range(2, 12)  # 2 to 11 weeks ago, so the dashboard charts have a trend to draw
+SKIPPED_WEEK = 6             # one week off, to show a gap in the shooting line
+
+
+def older_history(recent_workouts):
+    """Two workouts a week for the past ~11 weeks, shooting slowly improving
+    toward the athlete's recent level. Invented numbers, test data only."""
+    recent_made = sum(m for _, m, a in recent_workouts)
+    recent_attempted = sum(a for _, m, a in recent_workouts)
+    recent_pct = round(recent_made / recent_attempted * 100)
+    history = []
+    for weeks_ago in HISTORY_WEEKS:
+        if weeks_ago == SKIPPED_WEEK:
+            continue
+        pct = recent_pct - weeks_ago * 2  # about 2 points lower for each week further back
+        for day_in_week in (1, 4):
+            history.append((weeks_ago * 7 + day_in_week, pct // 2, 50))  # made, of 50 attempts
+    return history
+
 
 class Command(BaseCommand):
     help = "Create 7 fake test athletes (@example.com) across the 11th and 12th grade boards."
@@ -128,6 +147,8 @@ class Command(BaseCommand):
                 if created or options["refresh"]:
                     athlete.workout_set.all().delete()
                     for days_ago, made, attempted in info["workouts"]:
+                        self.add_workout(athlete, today - datetime.timedelta(days=days_ago), made, attempted)
+                    for days_ago, made, attempted in older_history(info["workouts"]):
                         self.add_workout(athlete, today - datetime.timedelta(days=days_ago), made, attempted)
                     # Sample rankings: invented numbers, linked to the outlet's home page
                     # (there's no real player page for a fake athlete).

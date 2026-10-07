@@ -16,7 +16,8 @@ from .forms import POSITIONS, HighlightForm, ProfileForm, RankingForm, SignupFor
 from .models import Athlete, Highlight, Ranking, Workout, WorkoutSet
 from .stats import (
     LEADERBOARD_GRADES, STALE_AFTER_DAYS, grad_year_for, grade_for, is_stale, minutes_between, pct_change,
-    shooting_pct, shooting_totals, short_name, streak, week_start,
+    daily_series, latest_change, shooting_pct, shooting_totals, short_name, streak, week_start,
+    weekly_series,
 )
 from .workout_templates import GUARD_60, GUARD_60_FOCUS, create_todays_workout, todays_workout
 
@@ -66,6 +67,7 @@ def dashboard(request):
         context["plan_drills"] = len(GUARD_60)
         context["plan_tracked"] = sum(1 for _, _, tracks in GUARD_60 if tracks)
         context["total"], context["last_date"] = history_numbers(athlete)
+        context["chart_data"] = chart_data(athlete, timezone.localdate())
     return render(request, "dashboard.html", context)
 
 
@@ -674,3 +676,47 @@ def settings_page(request):
         "active_tab": "settings",
         "my_short_name": short_name(athlete.full_name) if athlete else "",
     })
+
+
+# --- Dashboard charts ---------------------------------------------------------
+
+CHART_WEEKS = 12
+CHART_DAYS = 14
+
+
+def chart_data(athlete, today):
+    """Numbers for the two dashboard charts, last 12 weeks, oldest first.
+
+    Goes into the page with Django's json_script filter (never pasted straight
+    into a <script> tag). Weeks without shots are None, which the line chart
+    draws as a gap, not a drop to 0%.
+    """
+    since = week_start(today) - datetime.timedelta(weeks=CHART_WEEKS - 1)
+    # One row per finished workout: its date and its total makes/attempts.
+    workouts = (
+        Workout.objects.filter(athlete=athlete, status="completed", date__gte=since)
+        .annotate(made_total=Sum("workoutset__made"), attempted_total=Sum("workoutset__attempted"))
+        .values_list("date", "made_total", "attempted_total")
+    )
+    workouts = list(workouts)
+    weeks = weekly_series(workouts, today, weeks=CHART_WEEKS)
+    days = daily_series(workouts, today, days=CHART_DAYS)
+
+    def view(series, date_key, compared_with):
+        shooting = [entry["shooting_pct"] for entry in series]
+        latest, change = latest_change(shooting)
+        return {
+            # "Sep 28" — the day (or the Monday a week starts on)
+            "labels": [f"{entry[date_key]:%b} {entry[date_key].day}" for entry in series],
+            "shooting": shooting,
+            "workouts": [entry["workouts"] for entry in series],
+            "latest": latest,
+            "change": change,
+            "compared_with": compared_with,
+        }
+
+    return {
+        "week": view(weeks, "week_start", "last week"),
+        "day": view(days, "day", "last session"),
+        "has_data": any(week["workouts"] for week in weeks),
+    }

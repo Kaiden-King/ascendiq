@@ -13,7 +13,8 @@ from django.utils import timezone
 
 from .models import Athlete, Highlight, Ranking, Workout, WorkoutSet
 from .stats import (
-    STALE_AFTER_DAYS, feet_and_inches, grad_year_for, grade_for, is_stale, minutes_between, pct_change, shooting_pct,
+    STALE_AFTER_DAYS, daily_series, feet_and_inches, grad_year_for, grade_for, is_stale, latest_change,
+    minutes_between, pct_change, shooting_pct,
     shooting_totals, short_name, streak, weekly_series,
 )
 
@@ -530,3 +531,91 @@ class SettingsAndNavTests(TestCase):
         self.assertRedirects(response, "/settings/")
         self.athlete.refresh_from_db()
         self.assertTrue(self.athlete.on_leaderboard)
+
+
+# ---------------------------------------------------------------------------
+# 8. Dashboard charts
+# ---------------------------------------------------------------------------
+
+
+@override_settings(STORAGES=PLAIN_STATIC, PASSWORD_HASHERS=FAST_HASHERS)
+class ChartTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("charter", password="unused-pw-123")
+        self.athlete = Athlete.objects.create(user=self.user, full_name="Chart Person", slug="chart")
+        self.client.force_login(self.user)
+        self.today = timezone.localdate()
+
+    def add(self, days_ago, made, attempted, status="completed"):
+        w = Workout.objects.create(athlete=self.athlete, status=status,
+                                   date=self.today - datetime.timedelta(days=days_ago))
+        WorkoutSet.objects.create(workout=w, drill_name="Shots", made=made, attempted=attempted)
+        WorkoutSet.objects.create(workout=w, drill_name="Slides")  # non-shooting drill
+
+    def chart(self):
+        return self.client.get("/dashboard/").context["chart_data"]
+
+    def test_new_athlete_gets_friendly_message_not_empty_charts(self):
+        response = self.client.get("/dashboard/")
+        self.assertFalse(response.context["chart_data"]["has_data"])
+        self.assertNotContains(response, 'id="shooting-chart"')
+        self.assertContains(response, "after your first finished workout")
+
+    def test_twelve_weeks_this_week_last(self):
+        self.add(0, 8, 10)
+        data = self.chart()["week"]
+        self.assertEqual(len(data["labels"]), 12)
+        self.assertEqual(data["workouts"][-1], 1)
+        self.assertEqual(data["shooting"][-1], 80)
+
+    def test_week_without_shots_is_a_gap(self):
+        self.add(0, 0, 0)
+        self.assertIsNone(self.chart()["week"]["shooting"][-1])
+
+    def test_unfinished_workouts_not_counted(self):
+        self.add(0, 8, 10, status="in_progress")
+        self.assertFalse(self.chart()["has_data"])
+
+    def test_only_my_workouts(self):
+        other = get_user_model().objects.create_user("someone", password="unused-pw-123")
+        theirs = Athlete.objects.create(user=other, full_name="Someone Else", slug="else")
+        Workout.objects.create(athlete=theirs, status="completed", date=self.today)
+        self.assertFalse(self.chart()["has_data"])
+
+    def test_data_goes_in_through_json_script(self):
+        self.add(0, 8, 10)
+        self.assertContains(self.client.get("/dashboard/"), '<script id="chart-data" type="application/json">')
+
+    def test_day_view_last_14_days(self):
+        self.add(0, 8, 10)
+        self.add(2, 6, 10)
+        day = self.chart()["day"]
+        self.assertEqual(len(day["labels"]), 14)
+        self.assertEqual(day["shooting"][-3:], [60, None, 80])  # a gap for the day off
+        self.assertEqual((day["latest"], day["change"]), (80, 20))
+
+    def test_week_change_compares_with_last_week(self):
+        self.add(0, 8, 10)   # this week: 80%
+        self.add(7, 7, 10)   # last week: 70%
+        week = self.chart()["week"]
+        self.assertEqual((week["latest"], week["change"], week["compared_with"]), (80, 10, "last week"))
+
+
+class DailyAndChangeTests(SimpleTestCase):
+    today = datetime.date(2026, 10, 7)
+
+    def test_daily_series(self):
+        series = daily_series([(self.today, 8, 10), (self.today - datetime.timedelta(days=2), 6, 10)],
+                              self.today, days=3)
+        self.assertEqual([d["shooting_pct"] for d in series], [60, None, 80])
+        self.assertEqual(series[-1]["day"], self.today)
+
+    def test_latest_change_skips_gaps(self):
+        self.assertEqual(latest_change([55, None, 58, None]), (58, 3))   # not a drop to 0
+
+    def test_latest_change_down(self):
+        self.assertEqual(latest_change([60, 56]), (56, -4))
+
+    def test_nothing_to_compare(self):
+        self.assertEqual(latest_change([None, 70]), (70, None))
+        self.assertEqual(latest_change([None]), (None, None))
