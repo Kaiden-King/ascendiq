@@ -10,6 +10,13 @@ Add to this instead of building. Nothing here is a bad idea.
   often paywalled, and full of other people's kids). Verify each outlet still
   publishes individual player rankings before listing it. Decided 2026-10-04.
 
+## Before sending the link to coaches (step 30) — 2026-10-08
+- Render free plan sleeps after ~15 min idle; first visit then waits ~30–60s.
+  Measured awake: ~0.1s to first byte, ~80 KB of files. Fix: Render's cheapest
+  paid plan (~$7/mo, needs a parent) or a keep-alive ping if Render's terms allow.
+- Supabase free projects can pause after about a week of no activity — check
+  their current rules and keep the app in use, or upgrade.
+
 ## Public profile — known limits (2026-10-07)
 - Parent consent is a tick on the athlete's device. Real verification: email the
   parent a confirmation link and only publish once they click it (needs the app

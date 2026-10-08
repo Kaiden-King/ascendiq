@@ -8,7 +8,9 @@ Two groups:
 import datetime
 
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import SimpleTestCase, TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from .models import Athlete, Highlight, PublishConsent, Ranking, Workout, WorkoutSet
@@ -767,3 +769,49 @@ class PublicProfileTests(TestCase):
         self.publish()
         self.client.logout()
         self.assertNotContains(self.client.get("/a/kaiden-king/"), "#99")
+
+
+# ---------------------------------------------------------------------------
+# 11. Speed: database lookups per page (step 29)
+# ---------------------------------------------------------------------------
+
+
+@override_settings(STORAGES=PLAIN_STATIC, PASSWORD_HASHERS=FAST_HASHERS)
+class QueryCountTests(TestCase):
+    """A page's lookup count must not grow with the amount of data (no N+1)."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("speedy", password="unused-pw-123")
+        self.athlete = Athlete.objects.create(user=self.user, full_name="Speedy Player", slug="speedy",
+                                              is_public=True)
+        self.today = timezone.localdate()
+
+    def add_data(self, count):
+        for i in range(count):
+            Ranking.objects.create(athlete=self.athlete, outlet="espn", stars=4, national_rank=i + 1,
+                                   url="https://espn.com/x", checked_on=self.today)
+            Highlight.objects.create(athlete=self.athlete, title=f"Clip {i}", url="https://youtu.be/x")
+            w = Workout.objects.create(athlete=self.athlete, status="completed",
+                                       date=self.today - datetime.timedelta(days=i))
+            WorkoutSet.objects.create(workout=w, drill_name="Shots", made=5, attempted=10)
+
+    def count(self, url, logged_in=False):
+        if logged_in:
+            self.client.force_login(self.user)
+        with CaptureQueriesContext(connection) as queries:
+            self.assertEqual(self.client.get(url).status_code, 200)
+        return len(queries)
+
+    def test_public_profile_lookups_dont_grow_with_data(self):
+        self.add_data(1)
+        few = self.count("/a/speedy/")
+        self.add_data(10)
+        self.assertEqual(self.count("/a/speedy/"), few)
+        self.assertLessEqual(few, 9)
+
+    def test_profile_and_dashboard_lookups_dont_grow_with_data(self):
+        self.add_data(1)
+        few = (self.count("/profile/", logged_in=True), self.count("/dashboard/", logged_in=True))
+        self.add_data(10)
+        many = (self.count("/profile/", logged_in=True), self.count("/dashboard/", logged_in=True))
+        self.assertEqual(few, many)
