@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
-from .models import Athlete, Highlight, Ranking, Workout, WorkoutSet
+from .models import Athlete, Highlight, PublishConsent, Ranking, Workout, WorkoutSet
 from .stats import (
     STALE_AFTER_DAYS, daily_series, feet_and_inches, grad_year_for, grade_for, is_stale, latest_change,
     minutes_between, pct_change, shooting_pct,
@@ -645,3 +645,125 @@ class CollectStaticTests(SimpleTestCase):
             },
         ):
             call_command("collectstatic", interactive=False, verbosity=0)
+
+
+# ---------------------------------------------------------------------------
+# 10. Public profile, consent, and hard rule #5
+# ---------------------------------------------------------------------------
+
+
+@override_settings(STORAGES=PLAIN_STATIC, PASSWORD_HASHERS=FAST_HASHERS)
+class PublicProfileTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user("kid", password="unused-pw-123", email="kid-login@example.com")
+        self.athlete = Athlete.objects.create(
+            user=self.user, full_name="Kaiden King", slug="kaiden-king", position="Point guard",
+            grad_year=2027, school="Churchill HS", gpa="3.60", height_in=74,
+            coach_name="Coach Lee", coach_email="coach@school.example",
+            contact_email="kaiden.own@example.com", show_contact_email=True,
+        )
+        Highlight.objects.create(athlete=self.athlete, title="Junior mix", url="https://youtu.be/abc")
+        self.client.force_login(self.user)
+
+    def publish(self, **fields):
+        data = {"age": "under18", "parent_name": "Pat King", "parent_email": "pat@example.com", "agree": "on"}
+        data.update(fields)
+        return self.client.post("/profile/publish/", data)
+
+    # --- Rule 5: private returns 404, never "this profile is private" ---
+
+    def test_private_profile_is_404_for_strangers(self):
+        self.client.logout()
+        response = self.client.get("/a/kaiden-king/")
+        self.assertEqual(response.status_code, 404)
+        self.assertNotContains(response, "private", status_code=404)
+
+    def test_private_looks_exactly_like_missing(self):
+        self.client.logout()
+        private = self.client.get("/a/kaiden-king/")
+        missing = self.client.get("/a/nobody-at-all/")
+        self.assertEqual((private.status_code, missing.status_code), (404, 404))
+
+    def test_private_is_404_even_for_another_logged_in_user(self):
+        other = get_user_model().objects.create_user("other", password="unused-pw-123")
+        self.client.force_login(other)
+        self.assertEqual(self.client.get("/a/kaiden-king/").status_code, 404)
+
+    # --- Consent ---
+
+    def test_cannot_publish_without_agreeing(self):
+        self.publish(agree="")
+        self.athlete.refresh_from_db()
+        self.assertFalse(self.athlete.is_public)
+
+    def test_under_18_needs_parent_name_and_email(self):
+        self.publish(parent_name="", parent_email="")
+        self.athlete.refresh_from_db()
+        self.assertFalse(self.athlete.is_public)
+
+    def test_parent_email_cannot_be_the_athletes_own(self):
+        self.publish(parent_email="Kaiden.Own@example.com")
+        self.athlete.refresh_from_db()
+        self.assertFalse(self.athlete.is_public)
+
+    def test_publish_records_who_agreed_and_what_was_shown(self):
+        self.publish()
+        self.athlete.refresh_from_db()
+        self.assertTrue(self.athlete.is_public)
+        consent = PublishConsent.objects.get(athlete=self.athlete)
+        self.assertEqual((consent.kind, consent.name, consent.email), ("parent", "Pat King", "pat@example.com"))
+        self.assertIn("School: Churchill HS", consent.shown)
+
+    def test_unpublish_makes_the_link_404_again(self):
+        self.publish()
+        self.client.post("/profile/unpublish/")
+        self.client.logout()
+        self.assertEqual(self.client.get("/a/kaiden-king/").status_code, 404)
+
+    # --- What strangers see ---
+
+    def test_public_page_works_logged_out(self):
+        self.publish()
+        self.client.logout()
+        response = self.client.get("/a/kaiden-king/")
+        self.assertContains(response, "Kaiden King")
+        self.assertContains(response, "6′2″")
+        self.assertContains(response, "Junior mix")
+        self.assertContains(response, "mailto:coach@school.example")
+        self.assertContains(response, '<meta name="robots" content="noindex, nofollow">')
+
+    def test_never_shows_login_details(self):
+        self.publish()
+        self.client.logout()
+        page = self.client.get("/a/kaiden-king/").content.decode()
+        self.assertNotIn("kid-login@example.com", page)   # account email
+        self.assertNotIn(">kid<", page)                     # username
+
+    def test_switched_off_fields_are_hidden(self):
+        Athlete.objects.filter(id=self.athlete.id).update(
+            show_school=False, show_gpa=False, show_rankings_highlights=False, show_stats=False)
+        self.publish()
+        self.client.logout()
+        page = self.client.get("/a/kaiden-king/").content.decode()
+        for hidden in ["Churchill HS", "3.60", "Junior mix", "tile__l\">Workouts"]:
+            self.assertNotIn(hidden, page)
+
+    def test_own_email_hidden_until_confirmed_18_plus(self):
+        self.publish()  # parent consent: athlete is under 18
+        self.client.logout()
+        self.assertNotContains(self.client.get("/a/kaiden-king/"), "kaiden.own@example.com")
+
+    def test_own_email_shown_after_confirming_18_plus(self):
+        self.publish(age="adult", parent_name="", parent_email="")
+        self.assertEqual(PublishConsent.objects.get(athlete=self.athlete).kind, "self")
+        self.client.logout()
+        self.assertContains(self.client.get("/a/kaiden-king/"), "mailto:kaiden.own@example.com")
+
+    def test_stale_rankings_left_off_the_public_page(self):
+        Ranking.objects.create(athlete=self.athlete, outlet="espn", stars=4, national_rank=99,
+                               url="https://espn.com/x",
+                               checked_on=timezone.localdate() - datetime.timedelta(days=STALE_AFTER_DAYS + 5))
+        self.publish()
+        self.client.logout()
+        self.assertNotContains(self.client.get("/a/kaiden-king/"), "#99")

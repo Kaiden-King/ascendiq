@@ -22,6 +22,15 @@
     <p class="who__private">Only you can see this page.</p>
   </section>
 
+  {# ============ PUBLIC PROFILE STATUS ============ #}
+  <a class="card card--pad set-row" href="{% url 'sharing' %}">
+    <span>
+      <span class="set-row__title">Public profile · {% if athlete.is_public %}<span class="pub-on">On</span>{% else %}Off{% endif %}</span>
+      <span class="today__sub">{% if athlete.is_public %}Coaches can open your link. Manage what's shown.{% else %}Share a link coaches can open without an account.{% endif %}</span>
+    </span>
+    <span class="link-more" aria-hidden="true">›</span>
+  </a>
+
   {# ============ MEASUREMENTS ============ #}
   <section class="sect">
     <div class="sect__hd"><h2>Measurements</h2></div>

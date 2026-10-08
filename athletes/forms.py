@@ -191,3 +191,68 @@ class RankingForm(forms.ModelForm):
             if parts.scheme != "https" or not on_domain(parts.hostname, domain):
                 self.add_error("url", f"Use an https link on {domain}, the outlet you picked.")
         return cleaned
+
+
+class SharingForm(forms.ModelForm):
+    """What the public profile shows, and the contact emails."""
+
+    class Meta:
+        model = Athlete
+        fields = [
+            "show_rankings_highlights", "show_stats", "show_school", "show_gpa",
+            "contact_email", "show_contact_email",
+            "parent_name", "parent_email", "show_parent_email",
+            "coach_name", "coach_email", "show_coach_email",
+        ]
+        labels = {
+            "show_rankings_highlights": "Rankings and highlights",
+            "show_stats": "Shooting stats and chart",
+            "show_school": "School name",
+            "show_gpa": "GPA",
+            "contact_email": "Your email",
+            "show_contact_email": "Show your email (18+ only)",
+            "parent_name": "Parent or guardian's name",
+            "parent_email": "Parent or guardian's email",
+            "show_parent_email": "Show parent's email",
+            "coach_name": "Coach's name",
+            "coach_email": "Coach's email",
+            "show_coach_email": "Show coach's email",
+        }
+        widgets = {
+            "contact_email": forms.EmailInput(attrs={"inputmode": "email", "autocomplete": "email"}),
+            "parent_email": forms.EmailInput(attrs={"inputmode": "email"}),
+            "coach_email": forms.EmailInput(attrs={"inputmode": "email"}),
+        }
+
+
+class PublishForm(forms.Form):
+    """The consent step before a profile goes public."""
+
+    AGE_CHOICES = [
+        ("under18", "I'm under 18 — a parent or guardian will agree"),
+        ("adult", "I'm 18 or older — I agree myself"),
+    ]
+
+    age = forms.ChoiceField(choices=AGE_CHOICES, widget=forms.RadioSelect, label="How old are you?")
+    parent_name = forms.CharField(max_length=120, required=False, label="Parent or guardian's name")
+    parent_email = forms.EmailField(required=False, label="Parent or guardian's email",
+                                    widget=forms.EmailInput(attrs={"inputmode": "email"}))
+    agree = forms.BooleanField(
+        label="I've read exactly what will be public, and I agree to it being on the open internet.",
+    )
+
+    def __init__(self, *args, athlete=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.athlete = athlete
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("age") == "under18":
+            if not cleaned.get("parent_name"):
+                self.add_error("parent_name", "Under 18, a parent or guardian has to agree.")
+            if not cleaned.get("parent_email"):
+                self.add_error("parent_email", "Add their email so there's a record of who agreed.")
+            own = (self.athlete.contact_email or "").lower() if self.athlete else ""
+            if own and (cleaned.get("parent_email") or "").lower() == own:
+                self.add_error("parent_email", "This is your own email. Use your parent or guardian's.")
+        return cleaned

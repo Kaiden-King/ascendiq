@@ -12,8 +12,10 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
-from .forms import POSITIONS, HighlightForm, ProfileForm, RankingForm, SignupForm
-from .models import Athlete, Highlight, Ranking, Workout, WorkoutSet
+from .forms import (
+    POSITIONS, HighlightForm, ProfileForm, PublishForm, RankingForm, SharingForm, SignupForm,
+)
+from .models import Athlete, Highlight, PublishConsent, Ranking, Workout, WorkoutSet
 from .stats import (
     LEADERBOARD_GRADES, STALE_AFTER_DAYS, grad_year_for, grade_for, is_stale, minutes_between, pct_change,
     daily_series, latest_change, shooting_pct, shooting_totals, short_name, streak, week_start,
@@ -720,3 +722,133 @@ def chart_data(athlete, today):
         "day": view(days, "day", "last session"),
         "has_data": any(week["workouts"] for week in weeks),
     }
+
+
+# --- Public profile: sharing settings, consent, the public page ---------------
+
+def public_items(athlete):
+    """Plain-English list of exactly what a stranger sees. Used on the consent
+    screen, saved with each consent, and drives the public page itself."""
+    items = ["Your full name", "Position and class year", "Height, weight and wingspan"]
+    if athlete.show_school and athlete.school:
+        items.append(f"School: {athlete.school}")
+    if athlete.show_gpa and athlete.gpa is not None:
+        items.append(f"GPA: {athlete.gpa}")
+    if athlete.show_rankings_highlights:
+        items.append("Your rankings (with links to the outlets) and highlight videos")
+    if athlete.show_stats:
+        items.append("Workouts logged, shooting % and your 12-week shooting chart")
+    for email, label in public_emails(athlete):
+        items.append(f"{label}: {email}")
+    return items
+
+
+def public_emails(athlete):
+    """(email, label) for each contact email that's filled in and switched on.
+    Your own email only once you've confirmed you're 18 or older."""
+    emails = []
+    if athlete.show_contact_email and athlete.contact_email and athlete.confirmed_adult:
+        emails.append((athlete.contact_email, "Email me"))
+    if athlete.show_parent_email and athlete.parent_email:
+        label = "Contact my parent"
+        if athlete.parent_name:
+            label += f" · {athlete.parent_name}"
+        emails.append((athlete.parent_email, label))
+    if athlete.show_coach_email and athlete.coach_email:
+        label = "Contact my coach"
+        if athlete.coach_name:
+            label += f" · {athlete.coach_name}"
+        emails.append((athlete.coach_email, label))
+    return emails
+
+
+@login_required
+def sharing(request):
+    """Choose what's public and the contact emails. Publish/unpublish live here too."""
+    athlete = get_object_or_404(Athlete, user=request.user)
+    if request.method == "POST":
+        form = SharingForm(request.POST, instance=athlete)
+        if form.is_valid():
+            form.save()
+            return redirect("sharing")
+    else:
+        form = SharingForm(instance=athlete)
+    return render(request, "sharing.html", {
+        "athlete": athlete,
+        "active_tab": "profile",
+        "form": form,
+        "items": public_items(athlete),
+        "public_url": request.build_absolute_uri(f"/a/{athlete.slug}/"),
+    })
+
+
+@login_required
+def publish(request):
+    """The consent screen. Nothing goes public without it."""
+    athlete = get_object_or_404(Athlete, user=request.user)
+    if request.method == "POST":
+        form = PublishForm(request.POST, athlete=athlete)
+        if form.is_valid():
+            adult = form.cleaned_data["age"] == "adult"
+            with transaction.atomic():
+                PublishConsent.objects.create(
+                    athlete=athlete,
+                    kind="self" if adult else "parent",
+                    name=athlete.full_name if adult else form.cleaned_data["parent_name"],
+                    email="" if adult else form.cleaned_data["parent_email"],
+                    shown="\n".join(public_items(athlete)),
+                )
+                if not adult:
+                    # Keep the parent's details on the profile for the contact button.
+                    athlete.parent_name = form.cleaned_data["parent_name"]
+                    athlete.parent_email = form.cleaned_data["parent_email"]
+                athlete.is_public = True
+                athlete.published_at = timezone.now()
+                athlete.save()
+            return redirect("sharing")
+    else:
+        form = PublishForm(athlete=athlete, initial={
+            "parent_name": athlete.parent_name, "parent_email": athlete.parent_email,
+        })
+    return render(request, "publish.html", {
+        "athlete": athlete,
+        "active_tab": "profile",
+        "form": form,
+        "items": public_items(athlete),
+    })
+
+
+@login_required
+@require_POST
+def unpublish(request):
+    """Make the profile private again. Instant; the link starts returning 404."""
+    athlete = get_object_or_404(Athlete, user=request.user)
+    athlete.is_public = False
+    athlete.save(update_fields=["is_public"])
+    return redirect("sharing")
+
+
+def public_profile(request, slug):
+    """The one page strangers see. No login.
+
+    is_public=True is part of the lookup, so a private profile is "not found" —
+    exactly like one that doesn't exist. Never "this profile is private",
+    which would confirm the account is there.
+    """
+    athlete = get_object_or_404(Athlete, slug=slug, is_public=True)
+    context = {
+        "athlete": athlete,
+        "emails": public_emails(athlete),
+    }
+    if athlete.show_rankings_highlights:
+        context["rankings"] = [r for r in athlete.ranking_set.all()
+                               if not is_stale(r.checked_on, timezone.localdate())]
+        context["highlights"] = athlete.highlight_set.all()
+    if athlete.show_stats:
+        total, _ = history_numbers(athlete)
+        finished = Workout.objects.filter(athlete=athlete, status="completed").aggregate(
+            made=Sum("workoutset__made"), attempted=Sum("workoutset__attempted"))
+        context["total"] = total
+        context["season_pct"] = shooting_pct(finished["made"] or 0, finished["attempted"])
+        context["chart_data"] = chart_data(athlete, timezone.localdate())
+    return render(request, "public_profile.html", context)

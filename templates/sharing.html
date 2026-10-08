@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Public profile · AscendIQ{% endblock %}
+
+{% block content %}
+  <div class="sect">
+    <div class="sect__hd">
+      <h2>Public profile</h2>
+      <a class="link-more" href="{% url 'profile' %}">Back</a>
+    </div>
+
+    {# ============ STATUS ============ #}
+    <section class="card card--pad share-status{% if athlete.is_public %} share-status--live{% endif %}">
+      {% if athlete.is_public %}
+        <p class="set-row__title">Public · anyone with the link can see it</p>
+        <p class="share-link"><a href="{{ public_url }}" target="_blank" rel="noopener">{{ public_url }}</a></p>
+        <p class="today__sub">Search engines are asked not to list it. Changes below show up right away.</p>
+        <form method="post" action="{% url 'unpublish' %}"
+              onsubmit="return confirm('Make your profile private? The link will stop working straight away.');">
+          {% csrf_token %}
+          <button type="submit" class="btn-ghost">Make private</button>
+        </form>
+      {% else %}
+        <p class="set-row__title">Private · only you can see your profile</p>
+        <p class="today__sub">Choose what to show below, then make it public. Under 18, a parent or guardian agrees first.</p>
+        <a class="btn-primary" href="{% url 'publish' %}">Make public…</a>
+      {% endif %}
+    </section>
+
+    {# ============ WHAT'S SHOWN + CONTACTS ============ #}
+    <form method="post" class="card card--pad" novalidate>
+      {% csrf_token %}
+      <p class="set-row__title">What strangers see</p>
+      <p class="today__sub">Always shown: your name, position, class year, height, weight and wingspan.</p>
+      <div class="switches">
+        {% include "partials/switch.html" with field=form.show_rankings_highlights %}
+        {% include "partials/switch.html" with field=form.show_stats %}
+        {% include "partials/switch.html" with field=form.show_school %}
+        {% include "partials/switch.html" with field=form.show_gpa %}
+      </div>
+
+      <p class="set-row__title share-sub">Contact</p>
+      <p class="today__sub">Shown as buttons that open an email. Never shown: your phone, address or username.</p>
+
+      {% include "partials/field.html" with field=form.coach_name %}
+      {% include "partials/field.html" with field=form.coach_email %}
+      {% include "partials/switch.html" with field=form.show_coach_email %}
+
+      {% include "partials/field.html" with field=form.parent_name %}
+      {% include "partials/field.html" with field=form.parent_email %}
+      {% include "partials/switch.html" with field=form.show_parent_email %}
+
+      {% include "partials/field.html" with field=form.contact_email %}
+      {% include "partials/switch.html" with field=form.show_contact_email %}
+      {% if not athlete.confirmed_adult %}
+        <p class="field__help">Your own email only appears once you've confirmed you're 18 or older. Until then, coaches reach you through your coach or parent.</p>
+      {% endif %}
+
+      <button type="submit" class="btn-primary">Save</button>
+    </form>
+
+    {# ============ PREVIEW LIST ============ #}
+    <section class="card card--pad">
+      <p class="set-row__title">Right now, a public profile would show</p>
+      <ul class="share-items">{% for item in items %}<li>{{ item }}</li>{% endfor %}</ul>
+    </section>
+  </div>
+{% endblock %}

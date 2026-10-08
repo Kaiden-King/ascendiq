@@ -755,3 +755,53 @@ a.btn-primary { display: flex; align-items: center; justify-content: center; }
 .trend-head__change { margin: 0; font-size: 14px; font-weight: 700; color: var(--muted); }
 .trend-head__change--up { color: var(--orange-lt); }
 .trend-head__change--down { color: var(--down); }
+
+/* ===================== public profile + sharing + consent ===================== */
+/* The public page has no app shell: a plain centred column that scrolls normally. */
+.pub {
+  max-width: 480px; margin: 0 auto; padding: 24px 16px 40px;
+  display: flex; flex-direction: column; gap: var(--pad);
+}
+.pub-contacts { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 18px; }
+.pub-contacts a { display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 12px; }
+.pub-gpa { margin-top: var(--gap); }
+.pub-foot { text-align: center; font-size: 14px; color: var(--muted); }
+.pub-foot p { margin: 0 0 4px; }
+.pub-foot b { color: var(--text); }
+.pub-foot b span { color: var(--orange); }
+.pub-on { color: var(--orange-lt); }
+
+.share-status--live { border-color: var(--orange); }
+.share-status .btn-primary, .share-status form { margin-top: 12px; }
+.share-link { margin: 4px 0 8px; font-size: 15px; word-break: break-all; }
+.share-link a { color: var(--orange-lt); text-decoration: underline; }
+.share-sub { margin-top: 20px; }
+.share-items { margin: 8px 0 0; padding-left: 20px; font-size: 16px; color: var(--body); }
+.share-items li { margin-bottom: 4px; }
+
+.switches { margin: 10px 0 4px; }
+.switch-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 52px; border-top: 1px solid var(--hairline); cursor: pointer;
+}
+.switch-row__label { font-size: 16px; color: var(--text); }
+.switch-row input[type="checkbox"] { width: 26px; height: 26px; accent-color: var(--orange); flex-shrink: 0; }
+
+.consent-age { border: 0; padding: 0; margin: 0 0 16px; min-width: 0; }
+.consent-age legend { padding: 0; margin-bottom: 8px; font-size: 16px; font-weight: 700; color: var(--text); }
+.consent-choice, .consent-agree {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 52px; padding: 12px;
+  margin-bottom: 8px; border-radius: var(--r-sm); background: var(--well); cursor: pointer;
+  font-size: 16px; color: var(--body);
+}
+.consent-choice input, .consent-agree input { width: 24px; height: 24px; margin: 0; flex-shrink: 0; accent-color: var(--orange); }
+.consent-agree { margin: 8px 0 16px; border: 1px solid var(--orange-line); }
+.consent-parent[hidden] { display: none; }
+.card .field input[type="email"], .card .field input[type="text"] { width: 100%; }
+/* The text-box rule above must not stretch radio buttons and tick boxes */
+.card .field input[type="radio"], .card .field input[type="checkbox"] {
+  width: 24px; height: 24px; min-height: 0; padding: 0; margin: 0;
+  flex-shrink: 0; accent-color: var(--orange); background: none; border: 0;
+}
+.consent-choice span { padding-top: 1px; }
+.field .consent-choice { display: flex; align-items: center; font-weight: 400; color: var(--body); }

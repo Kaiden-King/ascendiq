@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Make your profile public · AscendIQ{% endblock %}
+
+{% block content %}
+  <div class="sect">
+    <div class="sect__hd">
+      <h2>Make your profile public</h2>
+      <a class="link-more" href="{% url 'sharing' %}">Cancel</a>
+    </div>
+
+    {# ============ EXACTLY WHAT BECOMES PUBLIC ============ #}
+    <section class="card card--pad consent-what">
+      <p class="set-row__title">Anyone with the link will see:</p>
+      <ul class="share-items">{% for item in items %}<li>{{ item }}</li>{% endfor %}</ul>
+      <p class="today__sub">Never shown: your phone number, address, username, schedule, or where you'll be at any time.</p>
+      <p class="today__sub">You can make it private again at any moment, and the link stops working straight away.
+        Change what's shown in <a class="link-more" href="{% url 'sharing' %}">Public profile settings</a>.</p>
+    </section>
+
+    {# ============ WHO AGREES ============ #}
+    <form method="post" class="card card--pad" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="form-error" role="alert">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+
+      <fieldset class="field consent-age">
+        <legend>{{ form.age.label }}</legend>
+        {% for choice in form.age %}
+          <label class="consent-choice">{{ choice.tag }} <span>{{ choice.choice_label }}</span></label>
+        {% endfor %}
+        {{ form.age.errors }}
+      </fieldset>
+
+      <div class="consent-parent" id="consent-parent">
+        <p class="today__sub">Hand your phone to your parent or guardian for this part.</p>
+        {% include "partials/field.html" with field=form.parent_name %}
+        {% include "partials/field.html" with field=form.parent_email %}
+      </div>
+
+      <label class="consent-agree">
+        {{ form.agree }}
+        <span id="agree-text">{{ form.agree.label }}</span>
+      </label>
+      {{ form.agree.errors }}
+
+      <button type="submit" class="btn-primary">Make my profile public</button>
+    </form>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Show the parent fields only for "under 18", and word the agreement for whoever is agreeing.
+  (function () {
+    var parent = document.getElementById("consent-parent");
+    var agree = document.getElementById("agree-text");
+    function update() {
+      var picked = document.querySelector('input[name="age"]:checked');
+      var under18 = !picked || picked.value === "under18";
+      parent.hidden = !under18;
+      agree.textContent = under18
+        ? "As their parent or guardian, I've read exactly what will be public and I agree to it being on the open internet."
+        : "I'm 18 or older, I've read exactly what will be public, and I agree to it being on the open internet.";
+    }
+    document.querySelectorAll('input[name="age"]').forEach(function (r) { r.addEventListener("change", update); });
+    update();
+  })();
+</script>
+{% endblock %}

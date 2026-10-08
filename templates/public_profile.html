@@ -1,0 +1,121 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#001D3A">{# phone status bar; must be a literal colour, matches --bg #}
+  {# A minor's page: people with the link can see it, search engines are asked not to list it. #}
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{ athlete.full_name }} · {{ athlete.position|default:"Basketball" }}{% if athlete.grad_year %} · Class of {{ athlete.grad_year }}{% endif %}</title>
+  {# The preview card when the link is texted or posted (step 28 adds an image) #}
+  <meta property="og:type" content="profile">
+  <meta property="og:title" content="{{ athlete.full_name }} · {{ athlete.position|default:'Basketball' }}{% if athlete.grad_year %} · Class of {{ athlete.grad_year }}{% endif %}">
+  <meta property="og:description" content="{% if athlete.height_display %}{{ athlete.height_display }}{% endif %}{% if athlete.weight_lb %} · {{ athlete.weight_lb }} lb{% endif %}{% if athlete.show_school and athlete.school %} · {{ athlete.school }}{% endif %} · Recruiting profile on AscendIQ">
+  <link rel="stylesheet" href="{% static 'css/ascendiq.css' %}">
+</head>
+<body>
+<main class="pub">
+
+  {# ============ WHO ============ #}
+  <section class="who">
+    <span class="who__avatar" aria-hidden="true">{{ athlete.initials }}</span>
+    <h1 class="who__name">{{ athlete.full_name }}</h1>
+    <p class="who__meta">
+      {{ athlete.position|default:"" }}{% if athlete.position and athlete.grad_year %} · {% endif %}{% if athlete.grad_year %}Class of {{ athlete.grad_year }}{% endif %}
+    </p>
+    {% if athlete.show_school and athlete.school %}<p class="who__school">{{ athlete.school }}</p>{% endif %}
+    {% if emails %}
+      <div class="pub-contacts">
+        {% for email, label in emails %}
+          <a class="{% if forloop.first %}btn-primary{% else %}btn-ghost{% endif %}" href="mailto:{{ email }}">{{ label }}</a>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+
+  {# ============ MEASUREMENTS (+ GPA) ============ #}
+  <section class="sect">
+    <div class="sect__hd"><h2>Measurements</h2></div>
+    <div class="measures">
+      <div class="tile"><p class="tile__n">{{ athlete.height_display|default:"—" }}</p><p class="tile__l">Height</p></div>
+      <div class="tile"><p class="tile__n">{% if athlete.weight_lb %}{{ athlete.weight_lb }}<span> lb</span>{% else %}—{% endif %}</p><p class="tile__l">Weight</p></div>
+      <div class="tile"><p class="tile__n">{{ athlete.wingspan_display|default:"—" }}</p><p class="tile__l">Wingspan</p></div>
+    </div>
+    {% if athlete.show_gpa and athlete.gpa is not None %}
+      <div class="tile pub-gpa"><p class="tile__n">{{ athlete.gpa }}</p><p class="tile__l">GPA</p></div>
+    {% endif %}
+  </section>
+
+  {# ============ RANKINGS ============ #}
+  {% if rankings %}
+    <section class="sect">
+      <div class="sect__hd"><h2>Rankings</h2><span class="sect__note">Tap to verify at the source</span></div>
+      <ul class="rks">
+        {% for r in rankings %}
+          <li class="rk card">
+            <div class="rk__top">
+              <span class="rk__outlet">{{ r.get_outlet_display }}</span>
+              {% if r.stars %}<span class="rk__stars" aria-label="{{ r.stars }} stars">{{ r.stars_display }}</span>{% endif %}
+            </div>
+            <p class="rk__ranks">
+              {% if r.national_rank %}<span><b>#{{ r.national_rank }}</b> national</span>{% endif %}
+              {% if r.position_rank %}<span><b>#{{ r.position_rank }}</b> {{ athlete.position|default:"position" }}</span>{% endif %}
+              {% if r.state_rank %}<span><b>#{{ r.state_rank }}</b> in state</span>{% endif %}
+            </p>
+            <p class="rk__checked">Checked {{ r.checked_on|date:"j M Y" }}</p>
+            <a class="link-more rk__view" href="{{ r.url }}" target="_blank" rel="noopener noreferrer">View on {{ r.get_outlet_display }} ↗</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {# ============ HIGHLIGHTS ============ #}
+  {% if highlights %}
+    <section class="sect">
+      <div class="sect__hd"><h2>Highlights</h2></div>
+      <ul class="hls">
+        {% for highlight in highlights %}
+          <li class="hl">
+            <a class="hl__link" href="{{ highlight.url }}" target="_blank" rel="noopener noreferrer">
+              <svg class="hl__play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+              <span class="hl__title">{{ highlight.title }}</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {# ============ TRAINING ============ #}
+  {% if athlete.show_stats %}
+    <section class="sect">
+      <div class="sect__hd"><h2>Training</h2><span class="sect__note">Logged in AscendIQ</span></div>
+      <div class="tiles">
+        <div class="tile"><p class="tile__n">{{ total }}</p><p class="tile__l">Workouts</p></div>
+        <div class="tile"><p class="tile__n">{% if season_pct is not None %}{{ season_pct }}<span>%</span>{% else %}—{% endif %}</p><p class="tile__l">Shooting</p></div>
+      </div>
+      {% if chart_data.has_data %}
+        <div class="card card--pad chart-card">
+          <p class="eyebrow" data-title="shooting">Shooting % · 12 weeks</p>
+          <div class="chart-box"><canvas id="shooting-chart" role="img" aria-label="Line chart of weekly shooting percentage"></canvas></div>
+          <p class="chart-note" data-note>Gaps are weeks with no shots logged.</p>
+        </div>
+        {{ chart_data|json_script:"chart-data" }}
+      {% endif %}
+    </section>
+  {% endif %}
+
+  <footer class="pub-foot">
+    <p>Recruiting profile on <b>Ascend<span>IQ</span></b></p>
+    {% if athlete.show_stats %}<p>Workouts and shots are logged by the athlete.</p>{% endif %}
+    {% if rankings %}<p>Rankings link to each outlet so you can check them.</p>{% endif %}
+  </footer>
+</main>
+
+{% if athlete.show_stats and chart_data.has_data %}
+  <script src="{% static 'js/chart-4.5.1.umd.min.js' %}"></script>
+  <script src="{% static 'js/ascendiq-charts.js' %}"></script>
+{% endif %}
+</body>
+</html>

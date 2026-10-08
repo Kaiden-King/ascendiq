@@ -18,11 +18,34 @@ class Athlete(models.Model):
     wingspan_in = models.IntegerField(null=True, blank=True)
     gpa = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
     is_public = models.BooleanField(default=False)  # opt in, never out
+    published_at = models.DateTimeField(null=True, blank=True)
+
+    # --- Public profile: contact routes (each optional, each with its own switch) ---
+    contact_email = models.EmailField(blank=True)   # the athlete's own; shown only if they've confirmed 18+
+    parent_name = models.CharField(max_length=120, blank=True)
+    parent_email = models.EmailField(blank=True)
+    coach_name = models.CharField(max_length=120, blank=True)
+    coach_email = models.EmailField(blank=True)
+
+    # --- Public profile: what strangers can see (name, position, class, measurements always) ---
+    show_rankings_highlights = models.BooleanField(default=True)
+    show_stats = models.BooleanField(default=True)
+    show_school = models.BooleanField(default=True)
+    show_gpa = models.BooleanField(default=True)
+    show_contact_email = models.BooleanField(default=False)
+    show_parent_email = models.BooleanField(default=True)
+    show_coach_email = models.BooleanField(default=True)
     on_leaderboard = models.BooleanField(default=False)  # opt in: "Kaiden K." shown to others in the same grade
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.full_name
+
+    @property
+    def confirmed_adult(self):
+        """True if the latest publish consent was the athlete agreeing as 18+."""
+        latest = self.publishconsent_set.first()
+        return latest is not None and latest.kind == "self"
 
     @property
     def height_display(self):
@@ -155,3 +178,29 @@ class Ranking(models.Model):
     def stars_display(self):
         """4 -> '★★★★'"""
         return "★" * (self.stars or 0)
+
+
+class PublishConsent(models.Model):
+    """A record of who agreed, and when, each time a profile was made public.
+
+    Kept even if the profile goes private again — it's the audit trail.
+    `shown` is a plain-text list of exactly what was visible at that moment.
+    """
+
+    KINDS = [
+        ("parent", "Parent or guardian"),
+        ("self", "Athlete, 18 or older"),
+    ]
+
+    athlete = models.ForeignKey(Athlete, on_delete=models.CASCADE)
+    kind = models.CharField(max_length=10, choices=KINDS)
+    name = models.CharField(max_length=120)       # the parent's name, or the athlete's own
+    email = models.EmailField(blank=True)         # the parent's email (blank for self)
+    shown = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.athlete} · {self.get_kind_display()} · {self.created_at:%Y-%m-%d}"

@@ -10,6 +10,17 @@ Add to this instead of building. Nothing here is a bad idea.
   often paywalled, and full of other people's kids). Verify each outlet still
   publishes individual player rankings before listing it. Decided 2026-10-04.
 
+## Public profile — known limits (2026-10-07)
+- Parent consent is a tick on the athlete's device. Real verification: email the
+  parent a confirmation link and only publish once they click it (needs the app
+  to send email — Render + an email provider).
+- Public profiles send "noindex" (search engines asked not to list them). Option
+  for confirmed 18+ athletes to allow search listing.
+- Profile photo, and an image on the link preview card (step 28) — needs file
+  uploads, resizing, and storage.
+- Re-ask for consent if what's shown changes a lot after publishing (today the
+  consent record keeps the list from the moment of publishing).
+
 ## Team leaderboards — gamified (Kaiden's request, 2026-10-04)
 - High school teams: a team join code from the coach or captain; each team
   gets its own board, seen only by its members.

@@ -20,6 +20,15 @@
         <span class="link-more" aria-hidden="true">›</span>
       </a>
 
+      {# ============ PUBLIC PROFILE ============ #}
+      <a class="card card--pad set-row" href="{% url 'sharing' %}">
+        <span>
+          <span class="set-row__title">Public profile · {% if athlete.is_public %}On{% else %}Off{% endif %}</span>
+          <span class="today__sub">What coaches see, contact emails, make public or private</span>
+        </span>
+        <span class="link-more" aria-hidden="true">›</span>
+      </a>
+
       {# ============ LEADERBOARDS ============ #}
       <form class="card card--pad" method="post" action="{% url 'leaderboard_toggle' %}">
         {% csrf_token %}
