@@ -4,6 +4,9 @@ Everything cut, so it stays out of the six weeks without being forgotten.
 Add to this instead of building. Nothing here is a bad idea.
 
 ## Week 4 — Recruiting Hub
+- Scholarship deadlines page: the planning-folder version is personal (college
+  list, family finances) so it was NOT published. Rewrite it as a general guide
+  for any Maryland family, with sources and a checked-on date. (2026-10-09)
 - "Where to find rankings" page: links to each outlet's official basketball
   class rankings (ESPN, 247Sports, On3, Rivals, MaxPreps, USA Today) and a line
   on how each ranks players. Links only — never copy their lists (their content,

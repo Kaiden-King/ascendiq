@@ -1,0 +1,24 @@
+{% extends base %}
+
+{% block title %}{{ page.title }} · AscendIQ Hub{% endblock %}
+
+{% block content %}
+  <article class="hub">
+    <p class="hub__crumb"><a class="link-more" href="{% url 'hub_index' %}">‹ Recruiting Hub</a></p>
+    <h1 class="hub__title">{{ page.title }}</h1>
+
+    {# The sourcing standard, built into every page: when it was checked, when it's due again. #}
+    <p class="hub__dates">Checked on <b>{{ page.checked_on|date:"j F Y" }}</b> · next review {{ page.next_review|date:"j F Y" }}</p>
+    {% if due_for_review %}
+      <p class="hub__due" role="alert">This page is due for review. Rules and dates may have changed since it was checked — confirm anything important at the source.</p>
+    {% endif %}
+
+    <div class="hub__body">
+      {% include page.template %}
+    </div>
+
+    <footer class="hub__foot">
+      <p>Last checked {{ page.checked_on|date:"j F Y" }}. {{ page.disclaimer }}</p>
+    </footer>
+  </article>
+{% endblock %}

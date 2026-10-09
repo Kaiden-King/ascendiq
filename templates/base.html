@@ -50,10 +50,10 @@
       <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
       <span>Coach</span>
     </span>
-    <span class="nav__item nav__item--soon" aria-disabled="true" title="Coming in week 4">
+    <a href="{% url 'hub_index' %}" class="nav__item" {% if active_tab == 'hub' %}aria-current="page"{% endif %}>
       <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h6"/></svg>
       <span>Hub</span>
-    </span>
+    </a>
     {# Settings moved to the gear in the top right; this tab is the recruiting rankings board. #}
     <a href="{% url 'rankings_board' %}" class="nav__item" {% if active_tab == 'rankings' %}aria-current="page"{% endif %}>
       <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>

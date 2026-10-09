@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_htmx',
     'athletes',
+    'hub',
 ]
 
 MIDDLEWARE = [

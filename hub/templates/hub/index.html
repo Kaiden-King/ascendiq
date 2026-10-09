@@ -1,0 +1,24 @@
+{% extends base %}
+
+{% block title %}Recruiting Hub · AscendIQ{% endblock %}
+
+{% block content %}
+  <div class="sect">
+    <div class="sect__hd"><h2>Recruiting Hub</h2><span class="sect__note">Free · sourced · dated</span></div>
+    <p class="today__sub">Plain-language guides for families. Every claim links to the rule or organisation it comes from, and every page shows when it was last checked.</p>
+
+    <ul class="hub-list">
+      {% for page, due in pages %}
+        <li>
+          <a class="card card--pad hub-card" href="{% url 'hub_page' page.slug %}">
+            <span class="hub-card__title">{{ page.title }}</span>
+            <span class="today__sub">{{ page.summary }}</span>
+            <span class="hub-card__checked{% if due %} hub-card__checked--due{% endif %}">
+              {% if due %}Due for review · {% endif %}Checked {{ page.checked_on|date:"j M Y" }}
+            </span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endblock %}

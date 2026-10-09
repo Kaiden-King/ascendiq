@@ -6,9 +6,11 @@ app is second priority when the two collide.
 
 ## Current focus
 
-**Week 3 — charts and the public profile (steps 22–30).** stats.py + tests,
-two dashboard charts, consent screen, public profile at /a/<slug>/ (no login,
-404 if private), Open Graph preview, speed. Step 21 (real practice) still to do.
+**Week 4 — the AI coach, then stop (steps 31–38).** API key safely (Kaiden),
+context = aggregates only (no name/school/city/DOB to the model), system prompt
+with hard refusals, HTMX chat, caps + spend limit, generated workouts with
+validation + fallback, Recruiting Hub pages with sources and checked-on dates.
+Code freeze Friday. Still open from earlier: step 21 (real practice), step 30.
 
 Do not build ahead of this. If something later in the plan would help, say so;
 don't write it.
