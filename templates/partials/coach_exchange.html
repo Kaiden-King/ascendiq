@@ -1,0 +1,5 @@
+{# The HTMX reply: the question and the answer, added to the end of the thread. #}
+{% include "partials/coach_bubble.html" with message=asked %}
+{% include "partials/coach_bubble.html" with message=answer %}
+{# Out of band: the "questions left" counter at the top updates too. #}
+<p class="coach-left" id="coach-left" hx-swap-oob="true">{{ left }} of {{ per_week }} questions left this week</p>

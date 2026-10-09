@@ -26,12 +26,22 @@ def todays_workout(athlete):
     return Workout.objects.filter(athlete=athlete, date=timezone.localdate()).first()
 
 
-def create_todays_workout(athlete):
-    """Start today's workout from the template. Safe to call twice.
+def create_todays_workout(athlete, plan=None):
+    """Start today's workout. Safe to call twice.
+
+    plan is a coach-planned workout that has already passed coach.validate_plan()
+    ({"focus": ..., "drills": [{"name", "target", "tracks_makes"}]}). Without one,
+    the standard template above is used.
 
     Locking the athlete's row means a double-tap on Start waits for the first
     tap to finish, finds that workout, and returns it instead of making a second.
     """
+    if plan:
+        focus = plan["focus"]
+        drills = [(d["name"], d["target"], d["tracks_makes"]) for d in plan["drills"]]
+    else:
+        focus, drills = GUARD_60_FOCUS, GUARD_60
+
     with transaction.atomic():
         Athlete.objects.select_for_update().get(pk=athlete.pk)
 
@@ -42,10 +52,10 @@ def create_todays_workout(athlete):
         workout = Workout.objects.create(
             athlete=athlete,
             date=timezone.localdate(),
-            focus=GUARD_60_FOCUS,
+            focus=focus,
             started_at=timezone.now(),
         )
-        for name, target, tracks_shots in GUARD_60:
+        for name, target, tracks_shots in drills:
             WorkoutSet.objects.create(
                 workout=workout,
                 drill_name=name,

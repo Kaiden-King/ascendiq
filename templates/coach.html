@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Coach · AscendIQ{% endblock %}
+
+{% block content %}
+  <div class="sect">
+    <div class="sect__hd">
+      <h2>Coach</h2>
+      <span class="sect__note">Reads your logged workouts</span>
+    </div>
+    <p class="coach-left" id="coach-left">{{ left }} of {{ per_week }} questions left this week</p>
+    <p class="today__sub">The coach only sees your workout numbers and your position — never your name, school or anything that identifies you. It doesn't watch video, and it won't answer eligibility, transfer, NIL or scholarship questions; the Hub covers those.</p>
+  </div>
+
+  {% if not configured %}
+    <div class="card card--pad"><p class="today__sub">The coach isn't switched on yet. It needs an API key set up by a parent first.</p></div>
+  {% endif %}
+
+  <ol class="thread" id="thread" aria-live="polite">
+    {% for message in chat %}
+      {% include "partials/coach_bubble.html" %}
+    {% empty %}
+      <li class="bubble bubble--coach"><p>Ask me about your training — how your shooting is trending, whether you're consistent, or what to work on next.</p></li>
+    {% endfor %}
+  </ol>
+
+  {# A logged workout attached from its summary page ("Ask the coach about this workout"). #}
+  {% if attached %}
+    <div class="attached">
+      <span>About your <b>{{ attached.date|date:"M j" }}</b> workout · {{ attached.focus }}</span>
+      <a class="link-more" href="{% url 'coach' %}">Remove</a>
+    </div>
+  {% endif %}
+
+  {# Starter questions: an empty chat box gets nothing typed into it. #}
+  <div class="starters">
+    {% if attached %}
+      {% for question in attached_starters %}
+        <button type="button" class="starter"
+                hx-post="{% url 'coach_ask' %}" hx-vals='{"question": "{{ question|escapejs }}", "workout_id": "{{ attached.id }}"}'
+                hx-target="#thread" hx-swap="beforeend scroll:#thread:bottom"
+                hx-indicator="#thinking" hx-disabled-elt=".starter, .ask button">{{ question }}</button>
+      {% endfor %}
+    {% else %}
+      {% for question in starters %}
+        <button type="button" class="starter"
+                hx-post="{% url 'coach_ask' %}" hx-vals='{"question": "{{ question|escapejs }}"}'
+                hx-target="#thread" hx-swap="beforeend scroll:#thread:bottom"
+                hx-indicator="#thinking" hx-disabled-elt=".starter, .ask button">{{ question }}</button>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <p class="thinking htmx-indicator" id="thinking" role="status">Coach is thinking…</p>
+
+  <form class="ask" hx-post="{% url 'coach_ask' %}" hx-target="#thread" hx-swap="beforeend scroll:#thread:bottom"
+        hx-indicator="#thinking" hx-disabled-elt=".starter, .ask button"
+        hx-on::after-request="if (event.detail.successful) this.reset()">
+    {% if attached %}<input type="hidden" name="workout_id" value="{{ attached.id }}">{% endif %}
+    <label class="sr-only" for="question">Your question</label>
+    <input id="question" name="question" type="text" maxlength="300" autocomplete="off"
+           placeholder="Ask, or describe a workout you did…" required>
+    <button type="submit" class="btn-primary">Ask</button>
+  </form>
+  <p class="field__help">Describing a workout you didn't log? Say what you did and your numbers. Don't include your name, school or where you train.</p>
+
+  {# ============ PLAN A WORKOUT (step 36) ============ #}
+  <details class="card card--pad plan-form">
+    <summary class="link-more">Plan a workout with the coach</summary>
+    <form hx-post="{% url 'coach_plan' %}" hx-target="#thread" hx-swap="beforeend scroll:#thread:bottom"
+          hx-indicator="#thinking" hx-disabled-elt=".starter, .ask button, .plan-form button"
+          hx-on::after-request="if (event.detail.successful) { this.reset(); this.closest('details').open = false; }">
+      <fieldset class="plan-form__group">
+        <legend>How long?</legend>
+        <div class="plan-form__chips">
+          {% for minutes in plan_lengths %}
+            <label class="pick"><input type="radio" name="minutes" value="{{ minutes }}" {% if minutes == 60 %}checked{% endif %}><span>{{ minutes }} min</span></label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <fieldset class="plan-form__group">
+        <legend>Focus</legend>
+        <div class="plan-form__chips">
+          {% for focus in plan_focuses %}
+            <label class="pick"><input type="radio" name="focus" value="{{ focus }}" {% if forloop.first %}checked{% endif %}><span>{{ focus }}</span></label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <div class="field">
+        <label for="plan-note">Anything else? (optional)</label>
+        <input id="plan-note" name="note" type="text" maxlength="120" placeholder="e.g. only a half court today">
+      </div>
+      <button type="submit" class="btn-primary">Plan it</button>
+      <p class="field__help">Uses one of your weekly questions. The plan is checked before you can start it.</p>
+    </form>
+  </details>
+{% endblock %}

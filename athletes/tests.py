@@ -13,7 +13,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
-from .models import Athlete, Highlight, PublishConsent, Ranking, Workout, WorkoutSet
+from .models import Athlete, CoachMessage, Highlight, PublishConsent, Ranking, Workout, WorkoutSet
 from .stats import (
     STALE_AFTER_DAYS, daily_series, feet_and_inches, grad_year_for, grade_for, is_stale, latest_change,
     minutes_between, pct_change, shooting_pct,
@@ -815,3 +815,332 @@ class QueryCountTests(TestCase):
         self.add_data(10)
         many = (self.count("/profile/", logged_in=True), self.count("/dashboard/", logged_in=True))
         self.assertEqual(few, many)
+
+
+# ---------------------------------------------------------------------------
+# 12. AI coach (Claude is replaced by a stand-in: no key, no cost)
+# ---------------------------------------------------------------------------
+
+import json as _json
+import os as _os
+from types import SimpleNamespace
+from unittest import mock as _mock
+
+import anthropic
+import httpx2
+
+from . import coach
+
+
+def fake_reply(text="Your shooting is up to 80% this week.", stop_reason="end_turn"):
+    return SimpleNamespace(
+        stop_reason=stop_reason,
+        content=[SimpleNamespace(type="thinking", thinking=""), SimpleNamespace(type="text", text=text)],
+    )
+
+
+@override_settings(STORAGES=PLAIN_STATIC, PASSWORD_HASHERS=FAST_HASHERS,
+                   COACH_QUESTIONS_PER_WEEK=3, COACH_QUESTIONS_PER_DAY=3, COACH_APP_WIDE_PER_DAY=200)
+@_mock.patch.dict(_os.environ, {"ANTHROPIC_API_KEY": "test-key-not-real"})
+class CoachTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("coached", password="unused-pw-123",
+                                                         email="coached-login@example.com")
+        self.athlete = Athlete.objects.create(
+            user=self.user, full_name="Kaiden King", slug="kaiden-king", position="Point guard",
+            school="Churchill HS", grad_year=2027, gpa="3.60", contact_email="own@example.com",
+            parent_name="Pat King", parent_email="pat@example.com",
+        )
+        today = timezone.localdate()
+        for days_ago, made in [(1, 8), (3, 7), (40, 5)]:
+            w = Workout.objects.create(athlete=self.athlete, status="completed", duration_min=60,
+                                       date=today - datetime.timedelta(days=days_ago), focus="Shooting")
+            WorkoutSet.objects.create(workout=w, drill_name="Form shooting", made=made, attempted=10, completed=True)
+        self.client.force_login(self.user)
+        self.fake = _mock.MagicMock()
+        self.fake.beta.messages.create.return_value = fake_reply()
+        patcher = _mock.patch("athletes.coach._client", return_value=self.fake)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def ask(self, question):
+        return self.client.post("/coach/ask/", {"question": question}, HTTP_HX_REQUEST="true")
+
+    def sent(self):
+        """Everything that went to Claude on the last call, as one string."""
+        kwargs = self.fake.beta.messages.create.call_args.kwargs
+        return _json.dumps(kwargs, default=str)
+
+    # --- Hard rule 6: only numbers and a position leave the server ---
+
+    def test_context_has_no_identifying_details(self):
+        context = coach.build_context(self.athlete, timezone.localdate())
+        text = _json.dumps(context).lower()
+        for private in ["kaiden", "king", "churchill", "3.60", "2027", "own@example.com",
+                        "pat", "coached", "kaiden-king"]:
+            self.assertNotIn(private, text)
+        self.assertEqual(set(context), {"today", "position", "last_28_days", "previous_28_days", "recent_sessions"})
+
+    def test_nothing_identifying_in_the_actual_request(self):
+        self.ask("How is my shooting?")
+        sent = self.sent().lower()
+        for private in ["kaiden", "churchill", "own@example.com", "pat@example.com", "coached-login"]:
+            self.assertNotIn(private, sent)
+
+    def test_context_numbers_are_right(self):
+        context = coach.build_context(self.athlete, timezone.localdate())
+        self.assertEqual(context["last_28_days"]["sessions"], 2)
+        self.assertEqual(context["last_28_days"]["shooting_pct"], 75)      # 15 of 20
+        self.assertEqual(context["previous_28_days"]["shooting_pct"], 50)  # 5 of 10
+        self.assertEqual(len(context["recent_sessions"]), 2)
+
+    # --- Hard rule 4: refusals ---
+
+    def test_hub_topics_never_reach_the_model(self):
+        for question in ["Can I get NIL money?", "Will I have to sit out if I transfer?",
+                         "Am I eligible for D1?", "How do I get a scholarship?",
+                         "what do I do to get offers"]:
+            with self.subTest(question=question):
+                response = self.ask(question)
+                self.assertContains(response, "Recruiting Hub")
+        self.fake.beta.messages.create.assert_not_called()
+        self.assertFalse(CoachMessage.objects.filter(counted=True).exists())  # none used up
+
+    def test_ordinary_questions_are_not_caught(self):
+        for question in ["How do I stay committed to training?", "Is my form shooting improving?"]:
+            self.assertFalse(coach.is_hub_question(question))
+
+    def test_system_prompt_carries_the_refusals(self):
+        self.ask("How is my shooting?")
+        system = self.fake.beta.messages.create.call_args.kwargs["system"]
+        for rule in ["video", "biomechanical", "eligibility", "NIL", "scholarships",
+                     "predict offers", "medical", "Recruiting Hub"]:
+            self.assertIn(rule, system)
+
+    # --- Caps ---
+
+    def test_fourth_question_in_a_week_is_refused(self):
+        for _ in range(3):
+            self.ask("How is my shooting?")
+        response = self.ask("And now?")
+        self.assertContains(response, "used your 3 questions for this week")
+        self.assertEqual(self.fake.beta.messages.create.call_count, 3)
+        self.assertContains(response, "0 of 3 questions left")
+
+    def test_app_wide_ceiling(self):
+        with override_settings(COACH_APP_WIDE_PER_DAY=1):
+            self.ask("How is my shooting?")
+            self.assertContains(self.ask("Again?"), "very busy today")
+        self.assertEqual(self.fake.beta.messages.create.call_count, 1)
+
+    def test_request_is_capped_and_uses_the_model_setting(self):
+        with override_settings(COACH_MODEL="claude-haiku-5-5"):
+            self.ask("How is my shooting?")
+        kwargs = self.fake.beta.messages.create.call_args.kwargs
+        self.assertEqual(kwargs["model"], "claude-haiku-5-5")
+        self.assertLessEqual(kwargs["max_tokens"], 1500)
+        self.assertEqual(kwargs["fallbacks"], "default")
+
+    # --- Failure handling: visible, and doesn't use up a question ---
+
+    def test_network_failure_shows_a_message_and_isnt_counted(self):
+        self.fake.beta.messages.create.side_effect = anthropic.APIConnectionError(
+            request=httpx2.Request("POST", "https://api.anthropic.com/v1/messages"))
+        response = self.ask("How is my shooting?")
+        self.assertContains(response, "answer right now")
+        self.assertFalse(CoachMessage.objects.filter(counted=True).exists())
+
+    def test_refusal_isnt_counted(self):
+        self.fake.beta.messages.create.return_value = fake_reply(text="", stop_reason="refusal")
+        self.assertContains(self.ask("How is my shooting?"), "answer that one")
+        self.assertFalse(CoachMessage.objects.filter(counted=True).exists())
+
+    def test_answer_is_saved_and_counted(self):
+        response = self.ask("How is my shooting?")
+        self.assertContains(response, "up to 80% this week")
+        self.assertEqual(CoachMessage.objects.filter(athlete=self.athlete, counted=True).count(), 1)
+
+    def test_not_configured_means_no_call(self):
+        with _mock.patch.dict(_os.environ, {"ANTHROPIC_API_KEY": ""}):
+            self.assertContains(self.ask("How is my shooting?"), "set up yet")
+        self.fake.beta.messages.create.assert_not_called()
+
+    # --- Two-account test ---
+
+    def test_only_my_own_chat_is_shown(self):
+        other_user = get_user_model().objects.create_user("other-chat", password="unused-pw-123")
+        other = Athlete.objects.create(user=other_user, full_name="Other Person", slug="other-chat")
+        CoachMessage.objects.create(athlete=other, role="athlete", content="SECRET question from someone else")
+        self.assertNotContains(self.client.get("/coach/"), "SECRET question")
+
+    def test_hub_answer_works_even_without_a_key(self):
+        with _mock.patch.dict(_os.environ, {"ANTHROPIC_API_KEY": ""}):
+            self.assertContains(self.ask("Can I get NIL money?"), "Recruiting Hub")
+        self.fake.beta.messages.create.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# 13. Coach: attached workouts, described workouts, planned workouts
+# ---------------------------------------------------------------------------
+
+GOOD_PLAN = {
+    "focus": "Catch and shoot",
+    "drills": [
+        {"name": "Form shooting", "target": "50 makes", "tracks_makes": True},
+        {"name": "Pound dribble", "target": "3 x 45s", "tracks_makes": False},
+        {"name": "Mid-range pull-up", "target": "40 makes", "tracks_makes": True},
+    ],
+}
+
+
+def fake_plan_reply(payload):
+    text = payload if isinstance(payload, str) else _json.dumps(payload)
+    return SimpleNamespace(stop_reason="end_turn", content=[SimpleNamespace(type="text", text=text)])
+
+
+class ValidatePlanTests(SimpleTestCase):
+    def test_good_plan_passes(self):
+        self.assertEqual(coach.validate_plan(GOOD_PLAN)["drills"][0]["name"], "Form shooting")
+
+    def test_collapses_newlines_and_spaces(self):
+        plan = _json.loads(_json.dumps(GOOD_PLAN))
+        plan["drills"][0]["name"] = "Form\n   shooting"
+        self.assertEqual(coach.validate_plan(plan)["drills"][0]["name"], "Form shooting")
+
+    def test_rejects_bad_plans(self):
+        too_few = {"focus": "x", "drills": GOOD_PLAN["drills"][:2]}
+        too_many = {"focus": "x", "drills": GOOD_PLAN["drills"] * 3}
+        long_name = {"focus": "x", "drills": [dict(d, name="x" * 61) for d in GOOD_PLAN["drills"]]}
+        not_bool = {"focus": "x", "drills": [dict(d, tracks_makes="yes") for d in GOOD_PLAN["drills"]]}
+        blank = {"focus": "  ", "drills": GOOD_PLAN["drills"]}
+        for bad in [too_few, too_many, long_name, not_bool, blank, [], "plan", None]:
+            with self.subTest(bad=str(bad)[:40]):
+                with self.assertRaises(ValueError):
+                    coach.validate_plan(bad)
+
+
+@override_settings(STORAGES=PLAIN_STATIC, PASSWORD_HASHERS=FAST_HASHERS,
+                   COACH_QUESTIONS_PER_WEEK=3, COACH_QUESTIONS_PER_DAY=3, COACH_APP_WIDE_PER_DAY=200)
+@_mock.patch.dict(_os.environ, {"ANTHROPIC_API_KEY": "test-key-not-real"})
+class CoachWorkoutTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("planner", password="unused-pw-123")
+        self.athlete = Athlete.objects.create(user=self.user, full_name="Kaiden King", slug="planner",
+                                              position="Point guard", school="Churchill HS")
+        self.today = timezone.localdate()
+        self.workout = Workout.objects.create(athlete=self.athlete, status="completed", duration_min=55,
+                                              date=self.today - datetime.timedelta(days=2), focus="Guard · 60 min")
+        WorkoutSet.objects.create(workout=self.workout, drill_name="Mid-range pull-up", target="40 makes",
+                                  made=18, attempted=40, completed=True)
+        WorkoutSet.objects.create(workout=self.workout, drill_name="Defensive slides", target="4 x 30s", completed=True)
+        other_user = get_user_model().objects.create_user("someone", password="unused-pw-123")
+        other = Athlete.objects.create(user=other_user, full_name="Someone Else", slug="someone")
+        self.others = Workout.objects.create(athlete=other, status="completed", date=self.today)
+        self.client.force_login(self.user)
+        self.fake = _mock.MagicMock()
+        self.fake.beta.messages.create.return_value = fake_reply()
+        patcher = _mock.patch("athletes.coach._client", return_value=self.fake)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def sent_kwargs(self):
+        return self.fake.beta.messages.create.call_args.kwargs
+
+    # --- 1. Ask about a logged workout ---
+
+    def test_attached_workout_goes_in_the_context(self):
+        response = self.client.post("/coach/ask/", {"question": "Why was my mid-range low?",
+                                                    "workout_id": self.workout.id}, HTTP_HX_REQUEST="true")
+        self.assertContains(response, "About your")
+        content = self.sent_kwargs()["messages"][0]["content"]
+        self.assertIn('"workout_in_question"', content)
+        self.assertIn('"Mid-range pull-up"', content)
+        self.assertIn('"shooting_pct": 45', content)  # 18 of 40
+        self.assertNotIn("Kaiden", content)
+        self.assertNotIn("Churchill", content)
+        self.assertEqual(CoachMessage.objects.get(role="athlete").workout, self.workout)
+
+    def test_cannot_attach_someone_elses_workout(self):
+        self.assertEqual(self.client.get(f"/coach/?workout={self.others.id}").status_code, 404)
+        response = self.client.post("/coach/ask/", {"question": "How was it?", "workout_id": self.others.id},
+                                    HTTP_HX_REQUEST="true")
+        self.assertEqual(response.status_code, 404)
+        self.fake.beta.messages.create.assert_not_called()
+
+    def test_bad_workout_id_is_404_not_a_crash(self):
+        self.assertEqual(self.client.get("/coach/?workout=abc").status_code, 404)
+
+    def test_summary_page_links_to_the_coach(self):
+        self.assertContains(self.client.get(f"/workout/{self.workout.id}/summary/"),
+                            f"/coach/?workout={self.workout.id}")
+
+    # --- 2. Describe a workout in the chat ---
+
+    def test_prompt_handles_described_workouts(self):
+        self.client.post("/coach/ask/", {"question": "I shot 40/50 free throws yesterday, is that good?"},
+                         HTTP_HX_REQUEST="true")
+        system = self.sent_kwargs()["system"]
+        self.assertIn("describe a workout they did but didn't log", system)
+        self.assertIn("what they told you", system)
+
+    # --- 3. Plan a workout ---
+
+    def plan(self, **fields):
+        data = {"minutes": "45", "focus": "Shooting", "note": ""}
+        data.update(fields)
+        return self.client.post("/coach/plan/", data, HTTP_HX_REQUEST="true")
+
+    def test_plan_uses_structured_output_and_is_saved(self):
+        self.fake.beta.messages.create.return_value = fake_plan_reply(GOOD_PLAN)
+        response = self.plan()
+        self.assertContains(response, "Catch and shoot")
+        self.assertContains(response, "Start this workout")
+        kwargs = self.sent_kwargs()
+        self.assertEqual(kwargs["output_config"]["format"]["type"], "json_schema")
+        self.assertNotIn("Kaiden", kwargs["messages"][0]["content"])
+        answer = CoachMessage.objects.get(role="coach")
+        self.assertEqual(answer.plan["focus"], "Catch and shoot")
+        self.assertTrue(CoachMessage.objects.get(role="athlete").counted)
+
+    def test_broken_plan_falls_back_to_the_standard_workout(self):
+        for broken in ['{"focus": "x", "drills": []}', "not json at all", {"focus": "x"}]:
+            with self.subTest(broken=str(broken)[:30]):
+                CoachMessage.objects.all().delete()
+                self.fake.beta.messages.create.return_value = fake_plan_reply(broken)
+                with self.assertLogs("athletes.coach", level="WARNING"):
+                    response = self.plan()
+                self.assertContains(response, "standard workout")
+                plan = CoachMessage.objects.get(role="coach").plan
+                self.assertEqual(plan["focus"], "Guard · 60 min")
+                self.assertFalse(CoachMessage.objects.get(role="athlete").counted)
+
+    def test_plan_rejects_unknown_choices(self):
+        self.assertEqual(self.plan(minutes="500").status_code, 400)
+        self.assertEqual(self.plan(focus="Weights").status_code, 400)
+        self.fake.beta.messages.create.assert_not_called()
+
+    def test_plan_counts_toward_the_weekly_limit(self):
+        self.fake.beta.messages.create.return_value = fake_plan_reply(GOOD_PLAN)
+        for _ in range(3):
+            self.plan()
+        self.assertContains(self.plan(), "used your 3 questions")
+
+    def test_start_a_planned_workout(self):
+        self.fake.beta.messages.create.return_value = fake_plan_reply(GOOD_PLAN)
+        self.plan()
+        answer = CoachMessage.objects.get(role="coach")
+        response = self.client.post(f"/coach/plan/{answer.id}/start/")
+        workout = Workout.objects.get(athlete=self.athlete, date=self.today)
+        self.assertRedirects(response, f"/workout/{workout.id}/")
+        self.assertEqual(workout.focus, "Catch and shoot")
+        drills = list(workout.workoutset_set.values_list("drill_name", "made"))
+        self.assertEqual(drills, [("Form shooting", 0), ("Pound dribble", None), ("Mid-range pull-up", 0)])
+        # Tapping Start again doesn't make a second workout.
+        self.client.post(f"/coach/plan/{answer.id}/start/")
+        self.assertEqual(Workout.objects.filter(athlete=self.athlete, date=self.today).count(), 1)
+
+    def test_cannot_start_someone_elses_plan(self):
+        other = Athlete.objects.get(slug="someone")
+        theirs = CoachMessage.objects.create(athlete=other, role="coach", content="plan", plan=GOOD_PLAN)
+        self.assertEqual(self.client.post(f"/coach/plan/{theirs.id}/start/").status_code, 404)
+        self.assertFalse(Workout.objects.filter(athlete=self.athlete, date=self.today).exists())

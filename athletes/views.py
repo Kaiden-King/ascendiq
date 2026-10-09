@@ -1,21 +1,23 @@
 import datetime
 
+from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, F, Q, Sum
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
+from . import coach
 from .forms import (
     POSITIONS, HighlightForm, ProfileForm, PublishForm, RankingForm, SharingForm, SignupForm,
 )
-from .models import Athlete, Highlight, PublishConsent, Ranking, Workout, WorkoutSet
+from .models import Athlete, CoachMessage, Highlight, PublishConsent, Ranking, Workout, WorkoutSet
 from .stats import (
     LEADERBOARD_GRADES, STALE_AFTER_DAYS, grad_year_for, grade_for, is_stale, minutes_between, pct_change,
     daily_series, latest_change, shooting_pct, shooting_totals, short_name, streak, week_start,
@@ -852,3 +854,164 @@ def public_profile(request, slug):
         context["season_pct"] = shooting_pct(finished["made"] or 0, finished["attempted"])
         context["chart_data"] = chart_data(athlete, timezone.localdate())
     return render(request, "public_profile.html", context)
+
+
+# --- AI coach -------------------------------------------------------------------
+
+MAX_QUESTION_LENGTH = 300
+
+
+def coach_allowance(athlete, today):
+    """(questions used this week, questions left this week). Only answered questions count."""
+    used = CoachMessage.objects.filter(
+        athlete=athlete, role="athlete", counted=True, created_at__date__gte=week_start(today),
+    ).count()
+    return used, max(0, settings.COACH_QUESTIONS_PER_WEEK - used)
+
+
+def coach_limit_reason(athlete, today):
+    """A plain-English reason the next question can't be asked, or None if it can."""
+    _, left = coach_allowance(athlete, today)
+    if left == 0:
+        return (f"You've used your {settings.COACH_QUESTIONS_PER_WEEK} questions for this week. "
+                "They reset on Monday.")
+    asked_today = CoachMessage.objects.filter(
+        athlete=athlete, role="athlete", counted=True, created_at__date=today).count()
+    if asked_today >= settings.COACH_QUESTIONS_PER_DAY:
+        return "That's enough questions for today. Try again tomorrow."
+    app_today = CoachMessage.objects.filter(role="athlete", counted=True, created_at__date=today).count()
+    if app_today >= settings.COACH_APP_WIDE_PER_DAY:
+        return "The coach is very busy today. Try again tomorrow."
+    return None
+
+
+def own_workout_or_404(request, workout_id):
+    """One of the logged-in athlete's own workouts, or 404 — for a bad id too."""
+    if not str(workout_id).isdigit():
+        raise Http404
+    # Access check in the query: someone else's workout ID is simply "not found".
+    return get_object_or_404(Workout, id=workout_id, athlete__user=request.user)
+
+
+@login_required
+def coach_page(request):
+    athlete = get_object_or_404(Athlete, user=request.user)
+    today = timezone.localdate()
+    used, left = coach_allowance(athlete, today)
+    attached = None
+    if request.GET.get("workout"):
+        attached = own_workout_or_404(request, request.GET["workout"])
+    return render(request, "coach.html", {
+        "attached": attached,
+        "attached_starters": coach.ATTACHED_STARTERS,
+        "plan_lengths": coach.PLAN_LENGTHS,
+        "plan_focuses": coach.PLAN_FOCUSES,
+        "athlete": athlete,
+        "active_tab": "coach",
+        # Only this athlete's own messages, newest 40, shown oldest first.
+        "chat": list(reversed(CoachMessage.objects.filter(athlete=athlete).order_by("-created_at", "-id")[:40])),
+        "left": left,
+        "per_week": settings.COACH_QUESTIONS_PER_WEEK,
+        "configured": coach.is_configured(),
+        "starters": coach.STARTER_QUESTIONS,
+        "hub_reply": coach.HUB_REPLY,
+    })
+
+
+@login_required
+@require_POST
+def coach_ask(request):
+    """One question in, one reply out. Checks happen in this order, cheapest first."""
+    athlete = get_object_or_404(Athlete, user=request.user)
+    today = timezone.localdate()
+    question = (request.POST.get("question") or "").strip()[:MAX_QUESTION_LENGTH]
+    if not question:
+        return HttpResponseBadRequest("Type a question first.")
+
+    attached = None
+    if request.POST.get("workout_id"):
+        attached = own_workout_or_404(request, request.POST["workout_id"])
+
+    counted = False
+    if coach.is_hub_question(question):
+        # Never sent to the model, doesn't use up a question, and works with no key.
+        reply = coach.HUB_REPLY
+    elif not coach.is_configured():
+        reply = "The coach isn't set up yet. Ask again once it's switched on."
+    elif (reason := coach_limit_reason(athlete, today)) is not None:
+        reply = reason
+    else:
+        context = coach.build_context(athlete, today)
+        if attached:
+            context["workout_in_question"] = coach.build_workout_context(attached)
+        reply, counted = coach.ask_coach(context, question)
+
+    asked = CoachMessage.objects.create(athlete=athlete, role="athlete", content=question,
+                                        counted=counted, workout=attached)
+    answer = CoachMessage.objects.create(athlete=athlete, role="coach", content=reply)
+
+    if not request.htmx:
+        return redirect("coach")
+    _, left = coach_allowance(athlete, today)
+    return render(request, "partials/coach_exchange.html", {
+        "asked": asked,
+        "answer": answer,
+        "left": left,
+        "per_week": settings.COACH_QUESTIONS_PER_WEEK,
+        "hub_reply": coach.HUB_REPLY,
+    })
+
+
+@login_required
+@require_POST
+def coach_plan(request):
+    """Ask the coach to plan a workout. The plan is validated before it's saved."""
+    athlete = get_object_or_404(Athlete, user=request.user)
+    today = timezone.localdate()
+    try:
+        minutes = int(request.POST.get("minutes", ""))
+    except ValueError:
+        minutes = 0
+    focus = request.POST.get("focus", "")
+    if minutes not in coach.PLAN_LENGTHS or focus not in coach.PLAN_FOCUSES:
+        return HttpResponseBadRequest("Pick a length and a focus.")
+    note = " ".join((request.POST.get("note") or "").split())[:120]
+
+    request_text = f"Plan me a {minutes}-minute {focus.lower()} workout." + (f" {note}" if note else "")
+    plan, counted = None, False
+    if not coach.is_configured():
+        reply = "The coach isn't set up yet. Ask again once it's switched on."
+    elif (reason := coach_limit_reason(athlete, today)) is not None:
+        reply = reason
+    else:
+        plan, counted = coach.plan_workout(coach.build_context(athlete, today), minutes, focus, note)
+        if counted:
+            reply = f"Here's a {minutes}-minute plan built from your recent numbers."
+        else:
+            reply = ("I couldn't build a custom plan just now, so here's the standard workout. "
+                     "This didn't use up a question.")
+
+    asked = CoachMessage.objects.create(athlete=athlete, role="athlete", content=request_text, counted=counted)
+    answer = CoachMessage.objects.create(athlete=athlete, role="coach", content=reply, plan=plan)
+
+    if not request.htmx:
+        return redirect("coach")
+    _, left = coach_allowance(athlete, today)
+    return render(request, "partials/coach_exchange.html", {
+        "asked": asked,
+        "answer": answer,
+        "left": left,
+        "per_week": settings.COACH_QUESTIONS_PER_WEEK,
+        "hub_reply": coach.HUB_REPLY,
+    })
+
+
+@login_required
+@require_POST
+def coach_plan_start(request, message_id):
+    """Start today's workout from a plan the coach gave. The plan comes from the
+    database (already validated when saved), never from the browser."""
+    message = get_object_or_404(CoachMessage, id=message_id, role="coach", plan__isnull=False,
+                                athlete__user=request.user)
+    workout = create_todays_workout(message.athlete, plan=message.plan)
+    return redirect("workout_session", workout_id=workout.id)

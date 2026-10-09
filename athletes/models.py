@@ -204,3 +204,28 @@ class PublishConsent(models.Model):
 
     def __str__(self):
         return f"{self.athlete} · {self.get_kind_display()} · {self.created_at:%Y-%m-%d}"
+
+
+class CoachMessage(models.Model):
+    """One message in an athlete's chat with the AI coach."""
+
+    ROLES = [("athlete", "Athlete"), ("coach", "Coach")]
+
+    athlete = models.ForeignKey(Athlete, on_delete=models.CASCADE)
+    role = models.CharField(max_length=10, choices=ROLES)
+    content = models.TextField()
+    # A question counts toward the weekly allowance only if it reached the AI
+    # and got an answer. Hub redirects and failed calls don't use one up.
+    counted = models.BooleanField(default=False)
+    # The logged workout this question is about, if one was attached.
+    workout = models.ForeignKey("Workout", null=True, blank=True, on_delete=models.SET_NULL)
+    # A workout the coach planned: {"focus": "...", "drills": [{"name", "target", "tracks_makes"}]}.
+    # Only ever saved after validate_plan() has checked it.
+    plan = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+    def __str__(self):
+        return f"{self.athlete} · {self.role} · {self.created_at:%Y-%m-%d %H:%M}"

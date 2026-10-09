@@ -14,9 +14,16 @@ import os
 from pathlib import Path
 
 import dj_database_url
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Laptop only: read secrets such as ANTHROPIC_API_KEY from a .env file in the
+# project folder (it's in .gitignore, so it never reaches GitHub). Render has no
+# .env file — there the same names come from its Environment page.
+# Real environment variables always win over .env.
+load_dotenv(BASE_DIR / '.env', override=False)
 
 
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
@@ -193,3 +200,13 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+
+# AI coach
+# The key itself is never in code: the Anthropic SDK reads ANTHROPIC_API_KEY
+# from the environment (.env on the laptop, Render's Environment page live).
+# The model is a setting so it can be changed without a code change.
+COACH_MODEL = os.environ.get('COACH_MODEL', 'claude-opus-5-5')
+COACH_QUESTIONS_PER_WEEK = 3     # the free-plan allowance
+COACH_QUESTIONS_PER_DAY = 3      # per athlete, a backstop if the weekly count ever breaks
+COACH_APP_WIDE_PER_DAY = 200     # whole app, a backstop against a bug or abuse looping

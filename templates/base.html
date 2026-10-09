@@ -36,7 +36,6 @@
   </main>
 
   {% block nav %}
-  {# Unbuilt sections are shown dimmed and can't be tapped. Turn each into a link the week it's built. #}
   <nav class="nav" aria-label="Main">
     <a href="{% url 'dashboard' %}" class="nav__item" {% if active_tab == 'record' %}aria-current="page"{% endif %}>
       <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
@@ -46,10 +45,10 @@
       <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8.5" cy="11" r="2.5"/><path d="M5.5 16.5c.6-1.6 1.7-2.4 3-2.4s2.4.8 3 2.4M14 10h5M14 14h4"/></svg>
       <span>Profile</span>
     </a>
-    <span class="nav__item nav__item--soon" aria-disabled="true" title="Coming in week 4">
+    <a href="{% url 'coach' %}" class="nav__item" {% if active_tab == 'coach' %}aria-current="page"{% endif %}>
       <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
       <span>Coach</span>
-    </span>
+    </a>
     <a href="{% url 'hub_index' %}" class="nav__item" {% if active_tab == 'hub' %}aria-current="page"{% endif %}>
       <svg class="nav__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h6"/></svg>
       <span>Hub</span>

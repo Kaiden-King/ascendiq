@@ -46,5 +46,6 @@
     {% endfor %}
   </ol>
 
+  <a class="btn-primary" href="{% url 'coach' %}?workout={{ workout.id }}">Ask the coach about this workout</a>
   <a class="btn-ghost" href="{% url 'dashboard' %}">Back to dashboard</a>
 {% endblock %}

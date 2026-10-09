@@ -1,0 +1,27 @@
+{# One chat message. The coach's Hub answer gets a button to the Hub; a plan gets its drills and a Start button. #}
+<li class="bubble bubble--{{ message.role }}">
+  {% if message.workout %}
+    <p class="bubble__about">About your {{ message.workout.date|date:"M j" }} workout</p>
+  {% endif %}
+  <p>{{ message.content|linebreaksbr }}</p>
+
+  {% if message.plan %}
+    <div class="plan">
+      <p class="plan__focus">{{ message.plan.focus }}</p>
+      <ol class="plan__drills">
+        {% for drill in message.plan.drills %}
+          <li><b>{{ drill.name }}</b> <span>{{ drill.target }}{% if drill.tracks_makes %} · makes tracked{% endif %}</span></li>
+        {% endfor %}
+      </ol>
+      <form method="post" action="{% url 'coach_plan_start' message.id %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-primary">Start this workout</button>
+      </form>
+      <p class="plan__note">If you've already started a workout today, this opens that one instead.</p>
+    </div>
+  {% endif %}
+
+  {% if message.role == "coach" and message.content == hub_reply %}
+    <a class="link-more bubble__link" href="{% url 'hub_index' %}">Open the Recruiting Hub ›</a>
+  {% endif %}
+</li>
