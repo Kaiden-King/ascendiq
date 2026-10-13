@@ -1144,3 +1144,155 @@ class CoachWorkoutTests(TestCase):
         theirs = CoachMessage.objects.create(athlete=other, role="coach", content="plan", plan=GOOD_PLAN)
         self.assertEqual(self.client.post(f"/coach/plan/{theirs.id}/start/").status_code, 404)
         self.assertFalse(Workout.objects.filter(athlete=self.athlete, date=self.today).exists())
+
+
+# ---------------------------------------------------------------------------
+# 14. Launch checks: every page in the app, swept (code freeze, step 38)
+# ---------------------------------------------------------------------------
+
+from django.urls import get_resolver, reverse
+
+# Every URL name in the app, sorted into what it is. COVERAGE below fails if a
+# page is added without being put in one of these lists.
+PUBLIC_PAGES = ["home", "signup", "login", "hub_index"]
+PUBLIC_WITH_ARGS = ["hub_page", "public_profile"]
+LOGIN_PAGES = ["dashboard", "history", "leaderboard", "rankings_board", "profile", "settings",
+               "coach", "sharing", "publish", "profile_edit", "workout_today"]
+LOGIN_POSTS = ["logout", "leaderboard_toggle", "coach_ask", "coach_plan", "unpublish",
+               "ranking_add", "highlight_add", "workout_start"]
+# Pages that take the id of something that belongs to one athlete. Each one
+# must say "not found" to anyone else: the two-account test.
+OWNED = {
+    "workout_session": ("GET", "workout"),
+    "workout_summary": ("GET", "finished_workout"),
+    "workout_finish": ("POST", "workout"),
+    "set_toggle": ("POST", "drill"),
+    "set_score": ("POST", "shooting_drill"),
+    "set_shot": ("POST", "shooting_drill"),
+    "coach_plan_start": ("POST", "plan_message"),
+    "ranking_delete": ("POST", "ranking"),
+    "highlight_delete": ("POST", "highlight"),
+}
+
+
+def all_url_names():
+    def walk(patterns):
+        for pattern in patterns:
+            if hasattr(pattern, "url_patterns"):
+                if not str(pattern.pattern).startswith("admin"):
+                    yield from walk(pattern.url_patterns)
+            elif pattern.name:
+                yield pattern.name
+    return set(walk(get_resolver().url_patterns))
+
+
+class CoverageTests(SimpleTestCase):
+    def test_every_page_is_in_a_launch_check_list(self):
+        covered = set(PUBLIC_PAGES + PUBLIC_WITH_ARGS + LOGIN_PAGES + LOGIN_POSTS) | set(OWNED)
+        self.assertEqual(all_url_names() - covered, set(),
+                         "New page: add it to a list in section 14 of tests.py")
+
+
+@override_settings(STORAGES=PLAIN_STATIC, PASSWORD_HASHERS=FAST_HASHERS)
+class LaunchSweepTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.owner_user = User.objects.create_user("owner-sweep", password="unused-pw-123")
+        self.owner = Athlete.objects.create(user=self.owner_user, full_name="Owner Sweep", slug="owner-sweep")
+        today = timezone.localdate()
+        self.objects = {}
+        self.objects["workout"] = Workout.objects.create(athlete=self.owner, date=today)
+        self.objects["finished_workout"] = Workout.objects.create(
+            athlete=self.owner, date=today - datetime.timedelta(days=1), status="completed")
+        self.objects["drill"] = WorkoutSet.objects.create(workout=self.objects["workout"], drill_name="Slides")
+        self.objects["shooting_drill"] = WorkoutSet.objects.create(
+            workout=self.objects["workout"], drill_name="Form shooting", made=5, attempted=10)
+        self.objects["plan_message"] = CoachMessage.objects.create(
+            athlete=self.owner, role="coach", content="plan", plan=GOOD_PLAN)
+        self.objects["ranking"] = Ranking.objects.create(
+            athlete=self.owner, outlet="espn", stars=4, url="https://espn.com/x", checked_on=today)
+        self.objects["highlight"] = Highlight.objects.create(
+            athlete=self.owner, title="Mix", url="https://youtu.be/x")
+
+        self.other_user = User.objects.create_user("other-sweep", password="unused-pw-123")
+        self.other = Athlete.objects.create(user=self.other_user, full_name="Other Sweep", slug="other-sweep")
+
+    def url(self, name):
+        if name in OWNED:
+            return reverse(name, args=[self.objects[OWNED[name][1]].id])
+        return reverse(name)
+
+    def test_logged_out_is_sent_to_log_in(self):
+        for name in LOGIN_PAGES + LOGIN_POSTS + list(OWNED):
+            with self.subTest(page=name):
+                method = self.client.post if (name in LOGIN_POSTS or OWNED.get(name, ("GET",))[0] == "POST") \
+                    else self.client.get
+                response = method(self.url(name))
+                if name == "logout":
+                    self.assertIn(response.status_code, (302, 200))
+                else:
+                    self.assertEqual(response.status_code, 302)
+                    self.assertIn("/login/", response["Location"])
+
+    def test_two_account_test_on_every_owned_page(self):
+        self.client.force_login(self.other_user)
+        for name, (method, _) in OWNED.items():
+            with self.subTest(page=name):
+                send = self.client.get if method == "GET" else self.client.post
+                self.assertEqual(send(self.url(name), HTTP_HX_REQUEST="true").status_code, 404)
+        # And nothing of the owner's changed.
+        self.assertTrue(Highlight.objects.filter(id=self.objects["highlight"].id).exists())
+        self.assertTrue(Ranking.objects.filter(id=self.objects["ranking"].id).exists())
+        self.assertEqual(Workout.objects.get(id=self.objects["workout"].id).status, "in_progress")
+        self.assertFalse(Workout.objects.filter(athlete=self.other).exists())
+
+    def test_owner_can_still_reach_their_own_pages(self):
+        self.client.force_login(self.owner_user)
+        for name in ["workout_session", "workout_summary"]:
+            with self.subTest(page=name):
+                self.assertEqual(self.client.get(self.url(name)).status_code, 200)
+
+    def test_brand_new_athlete_every_page_loads(self):
+        # No workouts, no profile details, nothing: every page must still work.
+        self.client.force_login(self.other_user)
+        for name in LOGIN_PAGES:
+            with self.subTest(page=name):
+                self.assertEqual(self.client.get(self.url(name)).status_code, 200)
+
+    def test_admin_login_without_a_profile_never_crashes(self):
+        admin = get_user_model().objects.create_superuser("admin-sweep", "a@example.com", "unused-pw-123")
+        self.client.force_login(admin)
+        for name in LOGIN_PAGES:
+            with self.subTest(page=name):
+                self.assertIn(self.client.get(self.url(name)).status_code, (200, 302, 404))
+
+    def test_public_pages_load_logged_out(self):
+        for name in PUBLIC_PAGES:
+            with self.subTest(page=name):
+                self.assertEqual(self.client.get(self.url(name)).status_code, 200)
+        self.assertEqual(self.client.get(reverse("hub_page", args=["transfer-and-nil"])).status_code, 200)
+        self.assertEqual(self.client.get(reverse("public_profile", args=["owner-sweep"])).status_code, 404)
+
+
+@override_settings(STORAGES=PLAIN_STATIC, PASSWORD_HASHERS=FAST_HASHERS)
+class CoachPageQueryTests(TestCase):
+    def test_coach_page_lookups_dont_grow_with_chat_history(self):
+        user = get_user_model().objects.create_user("chatty", password="unused-pw-123")
+        athlete = Athlete.objects.create(user=user, full_name="Chatty Player", slug="chatty")
+        self.client.force_login(user)
+
+        def add_chat(count):
+            for i in range(count):
+                w = Workout.objects.create(athlete=athlete, status="completed",
+                                           date=timezone.localdate() - datetime.timedelta(days=i))
+                CoachMessage.objects.create(athlete=athlete, role="athlete", content="how was it?", workout=w)
+
+        def lookups():
+            with CaptureQueriesContext(connection) as queries:
+                self.client.get("/coach/")
+            return len(queries)
+
+        add_chat(1)
+        few = lookups()
+        add_chat(8)
+        self.assertEqual(lookups(), few)

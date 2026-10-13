@@ -944,3 +944,6 @@ ol.sources li { margin-bottom: 10px; }
 .pick input:checked + span { background: var(--orange); border-color: var(--orange); color: var(--text); }
 .pick input:focus-visible + span { outline: 2px solid var(--orange-lt); outline-offset: 2px; }
 .plan-form .field { margin: 0; }
+
+/* Launch check: links in section headers (Back, Cancel, View, See all) were 18px tall */
+.sect__hd .link-more { display: inline-flex; align-items: center; min-height: 44px; padding: 0 2px; }

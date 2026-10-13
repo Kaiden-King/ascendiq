@@ -234,15 +234,15 @@ def set_score(request, set_id):
 @require_POST
 def set_shot(request, set_id):
     """+MAKE or +MISS: count one shot. Built for fast, repeated taps."""
-    result = request.POST.get("result")
-    if result not in ("make", "miss"):
-        return HttpResponseBadRequest("result must be make or miss")
-
-    # Access check in the query, same rules as typing a score.
+    # Access check first, in the query: someone else's drill is "not found"
+    # before anything about the request itself is looked at.
     workout_set = get_object_or_404(
         WorkoutSet, id=set_id, workout__athlete__user=request.user,
         workout__status="in_progress", made__isnull=False,
     )
+    result = request.POST.get("result")
+    if result not in ("make", "miss"):
+        return HttpResponseBadRequest("result must be make or miss")
     # F() does the +1 inside the database, so two quick taps can't both read
     # 40 and both write 41 — each tap really counts.
     WorkoutSet.objects.filter(id=workout_set.id, attempted__lt=MAX_SHOTS).update(
@@ -909,7 +909,11 @@ def coach_page(request):
         "athlete": athlete,
         "active_tab": "coach",
         # Only this athlete's own messages, newest 40, shown oldest first.
-        "chat": list(reversed(CoachMessage.objects.filter(athlete=athlete).order_by("-created_at", "-id")[:40])),
+        # select_related: fetch each message's attached workout in the same query (no N+1).
+        "chat": list(reversed(
+            CoachMessage.objects.filter(athlete=athlete).select_related("workout")
+            .order_by("-created_at", "-id")[:40]
+        )),
         "left": left,
         "per_week": settings.COACH_QUESTIONS_PER_WEEK,
         "configured": coach.is_configured(),
@@ -924,13 +928,14 @@ def coach_ask(request):
     """One question in, one reply out. Checks happen in this order, cheapest first."""
     athlete = get_object_or_404(Athlete, user=request.user)
     today = timezone.localdate()
-    question = (request.POST.get("question") or "").strip()[:MAX_QUESTION_LENGTH]
-    if not question:
-        return HttpResponseBadRequest("Type a question first.")
-
+    # Access check before anything else about the request.
     attached = None
     if request.POST.get("workout_id"):
         attached = own_workout_or_404(request, request.POST["workout_id"])
+
+    question = (request.POST.get("question") or "").strip()[:MAX_QUESTION_LENGTH]
+    if not question:
+        return HttpResponseBadRequest("Type a question first.")
 
     counted = False
     if coach.is_hub_question(question):

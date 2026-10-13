@@ -195,11 +195,16 @@ STORAGES = {
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+# The app doesn't send email yet. On the laptop, any email is just printed in the
+# terminal. On the live site Django's normal (SMTP) default applies, so a future
+# email feature fails loudly until a real email provider is set up, instead of
+# silently going nowhere.
+if DEBUG:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        },
+    }
 
 
 # AI coach
