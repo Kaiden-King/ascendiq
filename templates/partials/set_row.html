@@ -19,9 +19,9 @@
     <span class="sr-only">{% if set.completed %}Done — tap to undo{% else %}Tap when done{% endif %}</span>
   </button>
   {% if set.made is not None %}
-    {# Shooting drills only: type the numbers, or count shot by shot with the buttons. #}
+    {# Shooting drills only: the count, then tap a button per shot. Typing is tucked away. #}
     <div class="score">
-      {% include "partials/score_form.html" %}
+      {% include "partials/score_status.html" with pct=set.pct %}
       {% comment %}
         The buttons are never redrawn, so fast taps all land. hx-sync queues them
         in order on this wrapper; each one adds 1 in the database (see set_shot).
@@ -36,7 +36,10 @@
                 hx-target="#score-form-{{ set.id }}" hx-swap="outerHTML"
                 hx-sync="#shots-{{ set.id }}:queue all">+ Miss</button>
       </div>
-      {% include "partials/score_status.html" with pct=set.pct %}
+      <details class="more more--score">
+        <summary>Type numbers instead</summary>
+        {% include "partials/score_form.html" %}
+      </details>
     </div>
   {% endif %}
 </li>

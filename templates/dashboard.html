@@ -28,13 +28,15 @@
 
     {# ============ CHARTS: by day (14 days) or by week (12 weeks) ============ #}
     {% if chart_data.has_data %}
-      <div class="range-switch" role="group" aria-label="Chart range">
-        <button type="button" data-range="day" aria-pressed="false">Day</button>
-        <button type="button" data-range="week" aria-pressed="true">Week</button>
-      </div>
-
+      {# One Progress card: shooting first; the workouts chart opens with a tap. #}
       <section class="card card--pad chart-card">
-        <p class="eyebrow" data-title="shooting">Shooting % · 12 weeks</p>
+        <div class="chart-card__top">
+          <p class="eyebrow" data-title="shooting">Shooting %</p>
+          <div class="range-switch range-switch--small" role="group" aria-label="Chart range">
+            <button type="button" data-range="day" aria-pressed="false">Day</button>
+            <button type="button" data-range="week" aria-pressed="true">Week</button>
+          </div>
+        </div>
         {# Latest % and how much it moved. Drawn here for Week; the script redraws it on switch. #}
         <div class="trend-head">
           <p class="trend-head__pct" id="trend-latest">
@@ -45,42 +47,39 @@
         <div class="chart-box">
           <canvas id="shooting-chart" role="img" aria-label="Line chart of shooting percentage"></canvas>
         </div>
-        <p class="chart-note" data-note>Gaps are weeks with no shots logged.</p>
-      </section>
-      <section class="card card--pad chart-card">
-        <p class="eyebrow" data-title="workouts">Workouts per week · 12 weeks</p>
-        <div class="chart-box">
-          <canvas id="workouts-chart" role="img" aria-label="Bar chart of finished workouts"></canvas>
-        </div>
+        <p class="chart-note" data-note>Last 12 weeks. Gaps are weeks with no shots logged.</p>
+
+        <details class="more">
+          <summary><span data-title="workouts">Workouts per week</span></summary>
+          <div class="chart-box">
+            <canvas id="workouts-chart" role="img" aria-label="Bar chart of finished workouts"></canvas>
+          </div>
+        </details>
       </section>
       {# Safe way to hand Django data to JavaScript: json_script escapes it. #}
       {{ chart_data|json_script:"chart-data" }}
     {% else %}
       <section class="card card--pad chart-card">
-        <p class="eyebrow">Your charts</p>
-        <p class="today__sub">Shooting % and workouts per week show up here after your first finished workout.</p>
+        <p class="eyebrow">Your progress</p>
+        <p class="today__sub">Your shooting % and workouts per week show up here after your first finished workout.</p>
       </section>
     {% endif %}
 
-    {# ============ HISTORY ============ #}
-    <a class="card card--pad hist-card" href="{% url 'history' %}">
-      <span>
+    {# ============ HISTORY + LEADERBOARDS, side by side ============ #}
+    <div class="quick">
+      <a class="card quick__tile" href="{% url 'history' %}">
         <span class="eyebrow">History</span>
-        <span class="hist-card__n">{{ total }} workout{{ total|pluralize }}</span>
-        <span class="today__sub">{% if last_date %}Last session {{ last_date|date:"M j" }}{% else %}None yet{% endif %}</span>
-      </span>
-      <span class="link-more">See all</span>
-    </a>
-
-    {# ============ LEADERBOARD ============ #}
-    <a class="card card--pad hist-card" href="{% url 'leaderboard' %}">
-      <span>
+        <span class="quick__big">{{ total }}</span>
+        <span class="quick__sub">workout{{ total|pluralize }}{% if last_date %} · last {{ last_date|date:"M j" }}{% endif %}</span>
+      </a>
+      <a class="card quick__tile" href="{% url 'leaderboard' %}">
         <span class="eyebrow">Leaderboards</span>
-        <span class="hist-card__n">See where you rank</span>
-        <span class="today__sub">Training · Recruiting rankings</span>
-      </span>
-      <span class="link-more">Open</span>
-    </a>
+        <span class="quick__big quick__big--icon" aria-hidden="true">
+          <svg class="nav__icon" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+        </span>
+        <span class="quick__sub">See where you rank</span>
+      </a>
+    </div>
   {% else %}
     <section class="card card--pad">
       <p class="today__head">Welcome, {{ user.username }}</p>

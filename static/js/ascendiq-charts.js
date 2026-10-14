@@ -8,10 +8,10 @@
 
     // Words that change with the range.
     var TEXT = {
-      week: { shooting: "Shooting % · 12 weeks", workouts: "Workouts per week · 12 weeks",
-              note: "Gaps are weeks with no shots logged." },
-      day:  { shooting: "Shooting % · 14 days", workouts: "Workouts per day · 14 days",
-              note: "The line joins the days you shot. Rest days get no point, never 0%." },
+      week: { shooting: "Shooting %", workouts: "Workouts per week",
+              note: "Last 12 weeks. Gaps are weeks with no shots logged." },
+      day:  { shooting: "Shooting %", workouts: "Workouts per day",
+              note: "Last 14 days. The line joins the days you shot; rest days get no point, never 0%." },
     };
 
     // Colours come from the stylesheet's tokens, so the charts match the app.

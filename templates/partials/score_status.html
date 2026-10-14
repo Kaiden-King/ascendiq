@@ -1,15 +1,15 @@
-{# The line under the score boxes. Replaced after each save; the boxes themselves never are. #}
-<p class="score__status{% if error %} score__status--error{% elif hint %} score__status--hint{% endif %}"
+{# A shooting drill's count line, e.g. "41/50 · 82%". Redrawn after each save or tap. #}
+<p class="score__status{% if error %} score__status--error{% elif hint or pct is None %} score__status--hint{% endif %}"
    id="score-status-{{ set.id }}" role="status" {% if oob %}hx-swap-oob="true"{% endif %}>
   {% if error %}
     {{ error }}
   {% elif hint %}
     {{ hint }}
-  {% elif saved %}
-    Saved{% if pct is not None %} · {{ set.made }}/{{ set.attempted }} · {{ pct }}%{% endif %}
   {% elif pct is not None %}
     {{ set.made }}/{{ set.attempted }} · {{ pct }}%
+  {% elif saved %}
+    {{ set.made }}/{{ set.attempted }}
   {% else %}
-    Enter makes and attempts, or tap to count
+    Tap + Make or + Miss for each shot
   {% endif %}
 </p>

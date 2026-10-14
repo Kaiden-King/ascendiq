@@ -51,6 +51,18 @@ PAGES = [
                    "advice. Confirm eligibility and certification questions with your school, club and the "
                    "NCAA directly.",
     ),
+    HubPage(
+        slug="aau-and-conferences",
+        title="AAU circuits and DMV conferences",
+        summary="The Nike, adidas and Under Armour shoe circuits, how their season runs, "
+                "and the high school conferences and leagues in Maryland, DC and Virginia.",
+        checked_on=datetime.date(2026, 10, 13),
+        # The circuits publish next season's schedules early in the year: re-check then.
+        next_review=datetime.date(2027, 3, 1),
+        disclaimer="Compiled from each circuit's and league's own site. Circuit dates change every "
+                   "year — confirm on the official site before planning travel.",
+    ),
 ]
+
 
 PAGES_BY_SLUG = {page.slug: page for page in PAGES}

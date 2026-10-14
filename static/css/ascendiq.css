@@ -45,8 +45,9 @@
   --r-lg: 24px;
   --r-md: 16px;
   --r-sm: 12px;
-  --gap:  12px;
+  --gap:  14px;
   --pad:  24px;
+  --section-gap: 36px;  /* space between sections: the main 'breathing room' setting */
   --tap:  44px;              /* nothing tappable smaller than this */
 }
 
@@ -153,8 +154,8 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
   position: relative; z-index: 1;
   flex: 1;
   overflow-y: auto;
-  padding: 24px var(--pad) 24px;
-  display: flex; flex-direction: column; gap: var(--pad);
+  padding: 28px var(--pad) 32px;
+  display: flex; flex-direction: column; gap: var(--section-gap);
   scrollbar-width: none;
 }
 .main::-webkit-scrollbar { display: none; }
@@ -182,7 +183,7 @@ button { font: inherit; color: inherit; border: none; background: none; cursor: 
   border: 1px solid var(--card-line);
   border-radius: var(--r-lg);
 }
-.card--pad { padding: 20px; }
+.card--pad { padding: 22px; }
 .card--glow { box-shadow: var(--orange-glow); }
 
 /* ===================== primary action ===================== */
@@ -947,3 +948,56 @@ ol.sources li { margin-bottom: 10px; }
 
 /* Launch check: links in section headers (Back, Cancel, View, See all) were 18px tall */
 .sect__hd .link-more { display: inline-flex; align-items: center; min-height: 44px; padding: 0 2px; }
+
+
+/* ===================== simplify: dropdowns instead of rows of buttons ===================== */
+/* One or two dropdowns side by side, e.g. "12th grade" and "This week". */
+.picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.pick-select { display: flex; flex-direction: column; gap: 6px; }
+.pick-select span {
+  font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+}
+.pick-select select {
+  appearance: none; -webkit-appearance: none;
+  width: 100%; min-height: 48px; padding: 0 40px 0 14px;
+  font: inherit; font-size: 16px; font-weight: 700; color: var(--text);
+  background-color: var(--card);
+  /* the down-arrow, drawn with two gradients so no image file or raw colour is needed */
+  background-image: linear-gradient(45deg, transparent 50%, var(--orange-lt) 50%),
+                    linear-gradient(135deg, var(--orange-lt) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%;
+  background-size: 6px 6px, 6px 6px; background-repeat: no-repeat;
+  border: 1px solid var(--card-line); border-radius: var(--r-sm);
+}
+.pick-select select:focus-visible { outline: 2px solid var(--orange-lt); outline-offset: 2px; }
+.picks-go { justify-self: start; }  /* only shown when JavaScript is off */
+
+/* ===================== simplify: dashboard ===================== */
+.chart-card__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.range-switch--small { width: 120px; flex-shrink: 0; padding: 3px; }
+.range-switch--small button { min-height: 44px; font-size: 14px; }
+/* "Workouts per week ›" — a quiet row that opens the second chart */
+.more { border-top: 1px solid var(--hairline); padding-top: 4px; }
+.more summary {
+  display: flex; align-items: center; justify-content: space-between; min-height: 48px;
+  font-size: 15px; font-weight: 700; color: var(--body); cursor: pointer; list-style: none;
+}
+.more summary::-webkit-details-marker { display: none; }
+.more summary::after { content: "›"; font-size: 22px; color: var(--orange-lt); transition: transform .15s; }
+.more[open] summary::after { transform: rotate(90deg); }
+.quick { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+.quick__tile { display: flex; flex-direction: column; gap: 6px; min-height: 128px; padding: 18px; }
+.quick__big { font-size: 32px; font-weight: 700; line-height: 1.1; color: var(--text); }
+.quick__big--icon { color: var(--orange-lt); }
+.quick__big--icon .nav__icon { width: 34px; height: 34px; }
+.quick__sub { font-size: 16px; color: var(--muted); }
+
+/* ===================== simplify: workout screen ===================== */
+/* The count is the headline of a shooting drill; typing is a fallback. */
+.score .score__status { font-size: 18px; color: var(--text); }
+.score .score__status--hint { color: var(--muted); font-size: 16px; }
+.score .score__status--error { color: var(--down); font-size: 16px; }
+.more--score { border-top: 0; padding-top: 0; }
+.more--score summary { min-height: 44px; font-size: 14px; color: var(--muted); }
+.more--score .score__form { margin-top: 6px; }
+.sets { gap: 14px; }

@@ -97,9 +97,9 @@
       </div>
       {% if chart_data.has_data %}
         <div class="card card--pad chart-card">
-          <p class="eyebrow" data-title="shooting">Shooting % · 12 weeks</p>
+          <p class="eyebrow" data-title="shooting">Shooting %</p>
           <div class="chart-box"><canvas id="shooting-chart" role="img" aria-label="Line chart of weekly shooting percentage"></canvas></div>
-          <p class="chart-note" data-note>Gaps are weeks with no shots logged.</p>
+          <p class="chart-note" data-note>Last 12 weeks. Gaps are weeks with no shots logged.</p>
         </div>
         {{ chart_data|json_script:"chart-data" }}
       {% endif %}

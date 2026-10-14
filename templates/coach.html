@@ -70,22 +70,20 @@
     <form hx-post="{% url 'coach_plan' %}" hx-target="#thread" hx-swap="beforeend scroll:#thread:bottom"
           hx-indicator="#thinking" hx-disabled-elt=".starter, .ask button, .plan-form button"
           hx-on::after-request="if (event.detail.successful) { this.reset(); this.closest('details').open = false; }">
-      <fieldset class="plan-form__group">
-        <legend>How long?</legend>
-        <div class="plan-form__chips">
-          {% for minutes in plan_lengths %}
-            <label class="pick"><input type="radio" name="minutes" value="{{ minutes }}" {% if minutes == 60 %}checked{% endif %}><span>{{ minutes }} min</span></label>
-          {% endfor %}
-        </div>
-      </fieldset>
-      <fieldset class="plan-form__group">
-        <legend>Focus</legend>
-        <div class="plan-form__chips">
-          {% for focus in plan_focuses %}
-            <label class="pick"><input type="radio" name="focus" value="{{ focus }}" {% if forloop.first %}checked{% endif %}><span>{{ focus }}</span></label>
-          {% endfor %}
-        </div>
-      </fieldset>
+      <div class="picks">
+        <label class="pick-select">
+          <span>How long</span>
+          <select name="minutes">
+            {% for minutes in plan_lengths %}<option value="{{ minutes }}" {% if minutes == 60 %}selected{% endif %}>{{ minutes }} min</option>{% endfor %}
+          </select>
+        </label>
+        <label class="pick-select">
+          <span>Focus</span>
+          <select name="focus">
+            {% for focus in plan_focuses %}<option value="{{ focus }}">{{ focus }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
       <div class="field">
         <label for="plan-note">Anything else? (optional)</label>
         <input id="plan-note" name="note" type="text" maxlength="120" placeholder="e.g. only a half court today">

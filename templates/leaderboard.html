@@ -11,19 +11,22 @@
       <span class="sect__note">8th–12th grade</span>
     </div>
 
-    {# Grade boards: one per grade, 8th to 12th #}
-    <nav class="chips" aria-label="Grade">
-      {% for g in grades %}
-        <a class="chip" href="?grade={{ g }}&stat={{ stat }}" {% if g == grade %}aria-current="page"{% endif %}>{{ g }}th</a>
-      {% endfor %}
-    </nav>
-
-    {# Which stat the board ranks by #}
-    <nav class="chips chips--stat" aria-label="Rank by">
-      {% for key, names in stats.items %}
-        <a class="chip" href="?grade={{ grade }}&stat={{ key }}" {% if key == stat %}aria-current="page"{% endif %}>{{ names.0 }}</a>
-      {% endfor %}
-    </nav>
+    {# Which grade's board, and what it ranks by. Changing either reloads the board. #}
+    <form class="picks" method="get">
+      <label class="pick-select">
+        <span>Grade</span>
+        <select name="grade" onchange="this.form.submit()">
+          {% for g in grades %}<option value="{{ g }}" {% if g == grade %}selected{% endif %}>{{ g }}th grade</option>{% endfor %}
+        </select>
+      </label>
+      <label class="pick-select">
+        <span>Rank by</span>
+        <select name="stat" onchange="this.form.submit()">
+          {% for key, names in stats.items %}<option value="{{ key }}" {% if key == stat %}selected{% endif %}>{{ names.0 }}</option>{% endfor %}
+        </select>
+      </label>
+      <noscript><button type="submit" class="btn-ghost picks-go">Show</button></noscript>
+    </form>
     <p class="lb-stat-note">{{ stat_note }}</p>
   </div>
 

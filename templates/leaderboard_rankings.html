@@ -11,18 +11,22 @@
       <span class="sect__note">8th–12th grade</span>
     </div>
 
-    <nav class="chips" aria-label="Grade">
-      {% for g in grades %}
-        <a class="chip" href="?grade={{ g }}&outlet={{ outlet }}" {% if g == grade %}aria-current="page"{% endif %}>{{ g }}th</a>
-      {% endfor %}
-    </nav>
-
-    {# One board per outlet: their ranking systems differ, so they're never mixed. #}
-    <nav class="chips chips--wrap" aria-label="Outlet">
-      {% for key, name in outlets %}
-        <a class="chip" href="?grade={{ grade }}&outlet={{ key }}" {% if key == outlet %}aria-current="page"{% endif %}>{{ name }}</a>
-      {% endfor %}
-    </nav>
+    {# Which grade, and which outlet's rankings. One board per outlet: their systems differ, so they're never mixed. #}
+    <form class="picks" method="get">
+      <label class="pick-select">
+        <span>Grade</span>
+        <select name="grade" onchange="this.form.submit()">
+          {% for g in grades %}<option value="{{ g }}" {% if g == grade %}selected{% endif %}>{{ g }}th grade</option>{% endfor %}
+        </select>
+      </label>
+      <label class="pick-select">
+        <span>Outlet</span>
+        <select name="outlet" onchange="this.form.submit()">
+          {% for key, name in outlets %}<option value="{{ key }}" {% if key == outlet %}selected{% endif %}>{{ name }}</option>{% endfor %}
+        </select>
+      </label>
+      <noscript><button type="submit" class="btn-ghost picks-go">Show</button></noscript>
+    </form>
     <p class="lb-stat-note">AscendIQ athletes, ordered by their {{ outlet_name }} national rank. Each athlete links the source on their profile.</p>
   </div>
 
